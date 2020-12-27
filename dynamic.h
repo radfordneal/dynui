@@ -13,10 +13,7 @@
 
 struct dynamic_state
 { 
-  sfClock *clock;		/* Clock used to control speed */
-
-  sfTime real_time;		/* Real elapsed time after last update */
-  double sim_time;		/* Simulation time after last update */
+  double sim_time;		/* Current simulation time */
   double sim_speed;		/* Speed of simulation */
 
   void *i;			/* Additional information */
@@ -26,3 +23,7 @@ struct dynamic_state
 /* PROCEDURES IMPLEMENTING THE DYNAMIC SIMULATION. */
 
 extern void dynui_start (struct dynamic_state *ds, int argc, char **argv);
+extern void dynui_destroy (struct dynamic_state *ds);
+extern void dynui_advance (struct dynamic_state *ds);
+extern void dynui_view (struct dynamic_state *ds, sfRenderWindow *window,
+                        int width, int height);

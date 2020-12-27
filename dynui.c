@@ -24,8 +24,18 @@ struct window_state
 
   sfVertexArray *run_button;	/* Button to let simulation run */
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
+
+  sfClock *clock;		/* Clock used to control speed */
+  double start_real_time;	/* Real elapsed time from start of run */
+  double start_sim_time;	/* Simulation time from start of run */
+  double sim_speed;		/* Speed of simulation */
 };
 
+
+/* HEIGHT OF CONTROL AREA AT BOTTOM OF WINDOW. */
+
+static int c_height = 22;	/* c_height-4 must be divisible by 2, and
+                                   c_height-10 must be divisible by 3 */
 
 /* MAIN PROGRAM. */
 
@@ -37,9 +47,6 @@ int main (int argc, char **argv)
 
   struct dynamic_state ds;
   ds.sim_time = 0;
-  ds.sim_speed = 1;
-  ds.clock = sfClock_create();
-  ds.real_time = sfClock_getElapsedTime (ds.clock);
 
   dynui_start (&ds, argc, argv);
 
@@ -63,7 +70,8 @@ static void draw_controls (struct window_state *ws);
 static void destroy_controls (struct window_state *ws);
 
 static void mouse_press (struct window_state *ws, int x, int y);
-static void mouse_release (struct window_state *ws, int x, int y);
+static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
+                           int x, int y);
 
 static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
@@ -71,7 +79,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   sfVideoMode mode = {ws->width, ws->height, 32};
   ws->window = sfRenderWindow_create (mode, ws->title, sfClose, NULL);
-  if (!ws->window) exit(1);
+  if (ws->window == NULL) exit(1);
 
   sfVector2i window_pos = { 10, 10 };
   sfRenderWindow_setPosition (ws->window, window_pos);
@@ -79,7 +87,11 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   /* Load a font to use for textual displays. */
 
   ws->font = sfFont_createFromFile("ubuntu-fonts/Ubuntu-R.ttf");
-  if (!ws->font) exit(2);
+  if (ws->font == NULL) exit(2);
+
+  /* Create a clock used in controlling speed. */
+
+  ws->clock = sfClock_create();
 
   /* Create user control items. */
 
@@ -87,6 +99,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   /* The main user interaction loop. */
 
+  ws->sim_speed = 1;
   ws->control_pressed = 0;
   ws->running = 0;
 
@@ -104,7 +117,26 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
       { mouse_press (ws, event.mouseButton.x, event.mouseButton.y);
       }
       else if (event.type == sfEvtMouseButtonReleased)
-      { mouse_release (ws, event.mouseButton.x, event.mouseButton.y);
+      { mouse_release (ds, ws, event.mouseButton.x, event.mouseButton.y);
+      }
+    }
+
+    /* Run some more of the simulation.  We run only as much as needed to
+       keep up with the desired speed.  But if the simulation is slow, we
+       give up if we're making negligible progress at matching the desired
+       speed (since otherwise we'd never finish here). */
+
+    if (ws->running)
+    { double current_time;
+      double gap, oldgap;
+      oldgap = HUGE_VAL;
+      for (;;) 
+      { current_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+        gap = ws->sim_speed * (current_time - ws->start_real_time) 
+               - (ds->sim_time - ws->start_sim_time);
+        if (gap <= 0 || gap > 0.9*oldgap) break;
+        dynui_advance (ds);
+        oldgap = gap;
       }
     }
 
@@ -112,6 +144,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
     sfRenderWindow_clear (ws->window, sfBlack);
     draw_controls (ws);
+
+    dynui_view (ds, ws->window, ws->width, ws->height - c_height);
 
     /* Render the window onto the display. */
 
@@ -127,9 +161,6 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
 
 /* CREATE USER CONTROLS. */
-
-static int c_height = 22;	/* c_height-4 must be divisible by 2, and
-                                   c_height-10 must be divisible by 3 */
 
 static sfVector2f zero_vector = { 0, 0 };
 
@@ -227,6 +258,27 @@ static void destroy_controls (struct window_state *ws)
 }
 
 
-static void mouse_press (struct window_state *ws, int x, int y) {}
-static void mouse_release (struct window_state *ws, int x, int y) {}
+/* HANDLE A MOUSE PRESS EVENT.  We just record that it happened.  Nothing
+   is done until/unless the release event happens, for the same control. */
 
+static void mouse_press (struct window_state *ws, int x, int y) 
+{ if (y > c_height)
+  { ws->control_pressed = 1;
+  }
+}
+
+
+/* HANDLE A MOUSE RELEASE EVENT.  Actually does something, if the release
+   is for the same control as the previous press. */
+
+static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
+                           int x, int y)
+{ if (ws->control_pressed && y > c_height)
+  { ws->running = !ws->running;
+    if (ws->running)
+    { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+      ws->start_sim_time = ds->sim_time;
+    }
+    ws->control_pressed = 0;
+  }
+}
