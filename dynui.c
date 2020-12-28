@@ -5,6 +5,12 @@
 #include "dynui.h"
 
 
+/* ZERO VECTORS.  For convenience. */
+
+static sfVector2f zero_vector_f = { 0, 0 };
+static sfVector2i zero_vector_i = { 0, 0 };
+
+
 /* MAIN PROGRAM. */
 
 static void dynui_window (struct dynamic_state *ds, struct window_state *ws);
@@ -54,6 +60,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   sfVector2i window_pos = { 10, 10 };
   sfRenderWindow_setPosition (ws->window, window_pos);
 
+  sfRenderWindow_setVerticalSyncEnabled (ws->window, 1);
+
   /* Load a font to use for textual displays. */
 
   ws->font = sfFont_createFromFile("ubuntu-fonts/Ubuntu-R.ttf");
@@ -65,6 +73,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   /* Set initial values for state. */
 
+  ws->offset = zero_vector_f;
+  ws->scale = 1;
   ws->sim_speed = 1;
   ws->view_area_pressed = 0;
   ws->control_pressed = 0;
@@ -99,8 +109,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
     if (ws->view_area_pressed)
     { sfVector2i p = sfMouse_getPositionRenderWindow (ws->window);
-      ws->offset.x += p.x - ws->view_pressed.x;
-      ws->offset.y += p.y - ws->view_pressed.y;
+      ws->offset.x += (p.x - ws->view_pressed.x) / ws->scale;
+      ws->offset.y += (p.y - ws->view_pressed.y) / ws->scale;
       ws->view_pressed = p;
     }
 
@@ -170,17 +180,15 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
 /* CREATE USER CONTROLS. */
 
-static sfVector2f zero_vector = { 0, 0 };
-
 static void create_controls (struct window_state *ws)
 {
   int x, y, h, w, i;
   sfVector2f p;
 
   sfVertex v;
-  v.position = zero_vector;
+  v.position = zero_vector_f;
   v.color = sfWhite;
-  v.texCoords = zero_vector;
+  v.texCoords = zero_vector_f;
 
   /* Control area and boundary. */
 
@@ -258,6 +266,23 @@ static void create_controls (struct window_state *ws)
     sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ? sfWhite :
                                                sfColor_fromRGB (150, 150, 150));
   }
+
+  /* Zoom controls. */
+
+  sfVector2f s = { h, h };
+  x = ws->width/2 - (h+3)*N_SCALES/2;
+  y = ws->height - c_height + 6;
+  h = c_height - 12;
+
+  for (i = 0; i < N_SPEEDS; i++)
+  { ws->scales[i] = sfRectangleShape_create();
+    p.x = x + (h+3)*i;
+    p.y = y;
+    sfRectangleShape_setPosition (ws->scales[i], p);
+    sfRectangleShape_setSize (ws->scales[i], s);
+    sfRectangleShape_setFillColor (ws->scales[i], ws->scale == 1<<i ? sfWhite :
+                                   sfColor_fromRGB (150, 150, 150));
+  }
 }
 
 
@@ -279,6 +304,10 @@ static void draw_controls (struct window_state *ws)
 
   for (i = 0; i < N_SPEEDS; i++)
   { sfRenderWindow_drawCircleShape (ws->window, ws->speeds[i], NULL);
+  }
+
+  for (i = 0; i < N_SCALES; i++)
+  { sfRenderWindow_drawRectangleShape (ws->window, ws->scales[i], NULL);
   }
 }
 
@@ -354,6 +383,18 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         for (j = 0; j < N_SPEEDS; j++)
         { sfCircleShape_setFillColor (ws->speeds[j], j==i ? sfWhite : 
                                        sfColor_fromRGB (150, 150, 150));
+        }
+        goto reset_running;
+      }
+    }
+
+    for (i = 0; i < N_SCALES; i++)
+    { bounds = sfRectangleShape_getGlobalBounds(ws->scales[i]);
+      if (sfFloatRect_contains(&bounds,x,y))
+      { ws->scale = 1<<i;
+        for (j = 0; j < N_SCALES; j++)
+        { sfRectangleShape_setFillColor (ws->scales[j], j==i ? sfWhite : 
+                                        sfColor_fromRGB (150, 150, 150));
         }
         goto reset_running;
       }

@@ -14,7 +14,8 @@
 static int c_height = 22;	/* c_height-4 must be divisible by 2, and
                                    c_height-10 must be divisible by 3 */
 
-#define N_SPEEDS  4		/* Number speed settings */
+#define N_SPEEDS 4		/* Number speed settings */
+#define N_SCALES 4		/* Number of zoom settings */
 
 
 /* WINDOW STATE. */
@@ -28,7 +29,8 @@ struct window_state
   sfRenderWindow *window;	/* SFML window */
   sfFont *font;			/* Font used for text items */
 
-  sfVector2i offset;		/* Offset of centre of window */
+  sfVector2f offset;		/* Offset of centre of view area */
+  double scale;			/* Scaling factor for view area */
 
   int view_area_pressed;	/* Mouse was pressed in view area */
   sfVector2i view_pressed;	/* Coordinates of press in view area */
@@ -40,7 +42,8 @@ struct window_state
 
   sfVertexArray *run_button;	/* Button to let simulation run */
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
-  sfCircleShape *speeds[N_SPEEDS]; /* Speed control buttons */
+  sfCircleShape *speeds[N_SPEEDS];    /* Speed control buttons */
+  sfRectangleShape *scales[N_SCALES]; /* Zoom buttons */
 
   sfClock *clock;		/* Clock used to control speed */
   double start_real_time;	/* Real elapsed time from start of run */

@@ -5,6 +5,12 @@
 #include "dynui.h"
 
 
+/* ZERO VECTORS.  For convenience. */
+
+static sfVector2f zero_vector_f = { 0, 0 };
+static sfVector2i zero_vector_i = { 0, 0 };
+
+
 /* INITIALIZE THE SIMULATION. */
 
 void dynui_start (struct dynamic_state *ds, int argc, char **argv)
@@ -38,26 +44,28 @@ void dynui_advance (struct dynamic_state *ds)
 
 /* DRAW VIEW OF SIMULATION. */
 
+static int dot_radius = 4;
+
 void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 { 
-  int width = ws->width;
-  int height = ws->height - c_height;
+  sfVector2f origin = { ws->scale*ws->offset.x + ws->width/2, 
+                        ws->scale*ws->offset.y + ws->height/2 };
+
+  sfVector2f dot_origin = { ws->scale*dot_radius, ws->scale*dot_radius };
 
   sfCircleShape *dot = sfCircleShape_create();
+  sfCircleShape_setOrigin (dot, dot_origin);
+  sfCircleShape_setRadius (dot, ws->scale*dot_radius);
 
-  sfVector2f origin = { ws->offset.x + width/2 - 2, 
-                        ws->offset.y + height/2 - 2 };
-  sfCircleShape_setRadius (dot, 4);
   sfCircleShape_setFillColor (dot, sfWhite);
   sfCircleShape_setPosition (dot, origin);
 
   sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
 
   double theta = *(double*)ds->i;
-  sfVector2f pos = { ws->offset.x + width/2 + 100*cos(theta) - 2, 
-                     ws->offset.y + height/2 + 100*sin(theta) - 2 };
+  sfVector2f pos = { origin.x + ws->scale*100*cos(theta), 
+                     origin.y + ws->scale*100*sin(theta) };
 
-  sfCircleShape_setRadius (dot, 4);
   sfCircleShape_setFillColor (dot, sfRed);
   sfCircleShape_setPosition (dot, pos);
 
