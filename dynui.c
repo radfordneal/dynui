@@ -27,7 +27,7 @@ int main (int argc, char **argv)
   /* Create and interact with window for display and control of simulation. */
 
   struct window_state ws;
-  ws.width = 400;
+  ws.width = 600;
   ws.height = 500;
   ws.title = "DYNUI TEST";
 
@@ -54,7 +54,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   /* Create the window, with specified size and title. */
 
   sfVideoMode mode = {ws->width, ws->height, 32};
-  ws->window = sfRenderWindow_create (mode, ws->title, sfClose, NULL);
+  ws->window = sfRenderWindow_create(mode, ws->title, sfClose|sfTitlebar, NULL);
   if (ws->window == NULL) exit(1);
 
   sfVector2i window_pos = { 10, 10 };
