@@ -44,6 +44,7 @@ struct window_state
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
   sfCircleShape *speeds[N_SPEEDS];    /* Speed control buttons */
   sfRectangleShape *scales[N_SCALES]; /* Zoom buttons */
+  sfVertexArray *exit_button;	/* Button close window */
 
   sfText *sim_time_display;	/* Textual display of simulation time */
 
@@ -52,6 +53,8 @@ struct window_state
   double start_sim_time;	/* Simulation time from start of run */
   double sim_speed;		/* Speed of simulation */
   int running_behind;		/* Was simulation too slow for desired speed? */
+
+  int exit;			/* Should this window be closed? */
 };
 
 

@@ -80,6 +80,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   ws->control_pressed = 0;
   ws->running = 0;
   ws->running_behind = 0;
+  ws->exit = 0;
 
   /* Create user control items. */
 
@@ -94,9 +95,13 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     sfEvent event;
     while (sfRenderWindow_pollEvent (ws->window, &event))
     {
-      if (event.type == sfEvtClosed 
-       || event.type == sfEvtKeyPressed && event.key.code == sfKeyEscape)
-      { sfRenderWindow_close (ws->window);
+      if (event.type == sfEvtClosed)
+      { ws->exit = 1;
+      }
+      else if (event.type == sfEvtKeyPressed)
+      { if (event.key.code == sfKeyEscape)
+        { ws->exit = 1;
+        }
       }
       else if (event.type == sfEvtMouseButtonPressed)
       { mouse_press (ws, event.mouseButton.x, event.mouseButton.y);
@@ -174,6 +179,12 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     /* Render the window onto the display. */
 
     sfRenderWindow_display (ws->window);
+
+    /* Close window if user requested this. */
+
+    if (ws->exit)
+    { sfRenderWindow_close (ws->window);
+    }
   }
 
   /* Clean up resources used. */
@@ -299,6 +310,27 @@ static void create_controls (struct window_state *ws)
   sfText_setFont (ws->sim_time_display, ws->font);
   sfText_setCharacterSize (ws->sim_time_display, c_height-4);
   sfText_setString (ws->sim_time_display, "");
+
+  /* Exit button. */
+
+  x = ws->width - c_height;
+  y = ws->height - c_height + 4;
+  h = c_height - 8;
+
+  ws->exit_button = sfVertexArray_create();
+  v.position.x = x;
+  v.position.y = y;
+  sfVertexArray_append (ws->exit_button, v);
+  v.position.x = x+h;
+  v.position.y = y+h;
+  sfVertexArray_append (ws->exit_button, v);
+  v.position.x = x;
+  v.position.y = y+h;
+  sfVertexArray_append (ws->exit_button, v);
+  v.position.x = x+h;
+  v.position.y = y;
+  sfVertexArray_append (ws->exit_button, v);
+  sfVertexArray_setPrimitiveType (ws->exit_button, sfLines);
 }
 
 
@@ -327,6 +359,8 @@ static void draw_controls (struct window_state *ws)
   }
 
   sfRenderWindow_drawText (ws->window, ws->sim_time_display, NULL);
+
+  sfRenderWindow_drawVertexArray (ws->window, ws->exit_button, NULL);
 }
 
 
@@ -416,6 +450,11 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         }
         goto reset_running;
       }
+    }
+
+    bounds = sfVertexArray_getBounds(ws->exit_button);
+    if (sfFloatRect_contains(&bounds,x,y))
+    { ws->exit = 1;
     }
   }
 
