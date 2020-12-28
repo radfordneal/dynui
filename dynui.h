@@ -45,6 +45,8 @@ struct window_state
   sfCircleShape *speeds[N_SPEEDS];    /* Speed control buttons */
   sfRectangleShape *scales[N_SCALES]; /* Zoom buttons */
 
+  sfText *sim_time_display;	/* Textual display of simulation time */
+
   sfClock *clock;		/* Clock used to control speed */
   double start_real_time;	/* Real elapsed time from start of run */
   double start_sim_time;	/* Simulation time from start of run */

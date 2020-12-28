@@ -64,7 +64,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   /* Load a font to use for textual displays. */
 
-  ws->font = sfFont_createFromFile("ubuntu-fonts/Ubuntu-R.ttf");
+  ws->font = sfFont_createFromFile("ubuntu-fonts/UbuntuMono-R.ttf");
   if (ws->font == NULL) exit(2);
 
   /* Create a clock used in controlling speed. */
@@ -157,6 +157,10 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
                                       sfRed : sfColor_fromRGB (150, 150, 150));
         }
       }
+
+      char s[12];
+      sprintf (s, "%10.1f", ds->sim_time);
+      sfText_setString (ws->sim_time_display, s);
     }
           
     /* Redraw the window. */
@@ -284,6 +288,15 @@ static void create_controls (struct window_state *ws)
     sfRectangleShape_setFillColor (ws->scales[i], ws->scale == 1<<i ? sfWhite :
                                    sfColor_fromRGB (150, 150, 150));
   }
+
+  /* Text of simulation time. */
+
+  ws->sim_time_display = sfText_create();
+  sfVector2f t = { ws->width-5.2*(c_height-4), ws->height-c_height-1 }; 
+  sfText_setPosition (ws->sim_time_display, t);
+  sfText_setFont (ws->sim_time_display, ws->font);
+  sfText_setCharacterSize (ws->sim_time_display, c_height-4);
+  sfText_setString (ws->sim_time_display, "");
 }
 
 
@@ -310,6 +323,8 @@ static void draw_controls (struct window_state *ws)
   for (i = 0; i < N_SCALES; i++)
   { sfRenderWindow_drawRectangleShape (ws->window, ws->scales[i], NULL);
   }
+
+  sfRenderWindow_drawText (ws->window, ws->sim_time_display, NULL);
 }
 
 
