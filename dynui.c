@@ -1,45 +1,8 @@
-/* DYNUI - User interface for dynamic simulations.
+/* DYNUI.C - User interface for dynamic simulations.
    Copyright 2020 by Radford M. Neal
  */
 
-#include "dynamic.h"
-
-
-/* CONTROL AREA PARAMETERS. */
-
-static int c_height = 22;	/* c_height-4 must be divisible by 2, and
-                                   c_height-10 must be divisible by 3 */
-
-#define N_SPEEDS  4		/* Number speed settings */
-
-
-/* WINDOW STATE. */
-
-struct window_state
-{
-  int width;			/* Width of window */
-  int height;			/* Height of window */
-  char *title;			/* Title for window */
-
-  sfRenderWindow *window;	/* SFML window */
-  sfFont *font;			/* Font used for text items */
-
-  int control_pressed;		/* Control where mouse was pressed, 0 = none */
-  int running;			/* Is simulation running? */
-
-  sfRectangleShape *boundary;	/* Line (rect) separating controls from view */
-  sfRectangleShape *controls;	/* Rectangle in which controls reside */
-
-  sfVertexArray *run_button;	/* Button to let simulation run */
-  sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
-  sfCircleShape *speeds[N_SPEEDS]; /* Speed control buttons */
-
-  sfClock *clock;		/* Clock used to control speed */
-  double start_real_time;	/* Real elapsed time from start of run */
-  double start_sim_time;	/* Simulation time from start of run */
-  double sim_speed;		/* Speed of simulation */
-  int running_behind;		/* Was simulation too slow for desired speed? */
-};
+#include "dynui.h"
 
 
 /* MAIN PROGRAM. */
@@ -103,6 +66,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   /* Set initial values for state. */
 
   ws->sim_speed = 1;
+  ws->view_area_pressed = 0;
   ws->control_pressed = 0;
   ws->running = 0;
   ws->running_behind = 0;
@@ -131,51 +95,65 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
       }
     }
 
-    /* Run some more of the simulation.  We run only as much as needed to
-       keep up with the desired speed.  But if the simulation is slow, we
-       give up if we're making negligible progress at matching the desired
-       speed (since otherwise we'd never finish here). */
+    /* Shift view during press of the mouse in the view area. */
 
-    if (ws->running)
-    { double current_time;
-      double gap, oldgap;
-      oldgap = HUGE_VAL;
+    if (ws->view_area_pressed)
+    { sfVector2i p = sfMouse_getPositionRenderWindow (ws->window);
+      ws->offset.x += p.x - ws->view_pressed.x;
+      ws->offset.y += p.y - ws->view_pressed.y;
+      ws->view_pressed = p;
+    }
+
+    /* Run some more of the simulation (unless we're shifting the view).
+       We run only as much as needed to keep up with the desired
+       speed.  But if the simulation is slow, we give up if we're
+       making negligible progress at matching the desired speed (since
+       otherwise we'd never finish here). */
+
+    if (!ws->view_area_pressed)
+    {
       if (ws->running_behind)
       { for (i = 0; i < N_SPEEDS; i++)
         { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
                                       sfWhite : sfColor_fromRGB(150, 150, 150));
         }
       }
-      ws->running_behind = 0;
-      for (;;) 
-      { current_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
-        gap = ws->sim_speed * (current_time - ws->start_real_time) 
-               - (ds->sim_time - ws->start_sim_time);
-        if (gap <= 0)
-        { break;
-        }
-        if (gap > 0.9*oldgap) 
-        { ws->running_behind = 1;
-          break;
-        }
-        dynui_advance (ds);
-        oldgap = gap;
-      }
-    }
 
-    if (ws->running_behind)
-    { for (i = 0; i < N_SPEEDS; i++)
-      { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
-                                    sfRed : sfColor_fromRGB (150, 150, 150));
+      if (ws->running)
+      { double current_time;
+        double gap, oldgap;
+        oldgap = HUGE_VAL;
+        ws->running_behind = 0;
+        for (;;) 
+        { current_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+          gap = ws->sim_speed * (current_time - ws->start_real_time) 
+                 - (ds->sim_time - ws->start_sim_time);
+          if (gap <= 0)
+          { break;
+          }
+          if (gap > 0.9*oldgap) 
+          { ws->running_behind = 1;
+            break;
+          }
+          dynui_advance (ds);
+          oldgap = gap;
+        }
+      }
+
+      if (ws->running_behind)
+      { for (i = 0; i < N_SPEEDS; i++)
+        { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
+                                      sfRed : sfColor_fromRGB (150, 150, 150));
+        }
       }
     }
           
     /* Redraw the window. */
 
     sfRenderWindow_clear (ws->window, sfBlack);
-    draw_controls (ws);
 
-    dynui_view (ds, ws->window, ws->width, ws->height - c_height);
+    dynui_view (ds, ws);
+    draw_controls (ws);
 
     /* Render the window onto the display. */
 
@@ -317,46 +295,68 @@ static void destroy_controls (struct window_state *ws)
 }
 
 
-/* HANDLE A MOUSE PRESS EVENT.  We just record that it happened.  Nothing
-   is done until/unless the release event happens, for the same control. */
+/* HANDLE A MOUSE PRESS EVENT.  
+
+   For a press in the view area, we record that the mouse was pressed
+   there, so shifting of the view will commence.
+
+   For a press in the control area, we just record that it happened.  
+   Nothing is done until/unless the release event happens, also in
+   the control area. */
 
 static void mouse_press (struct window_state *ws, int x, int y) 
-{ if (y > c_height)
+{ if (y > ws->height - c_height)
   { ws->control_pressed = 1;
+  }
+  else
+  { ws->view_area_pressed = 1;
+    ws->view_pressed.x = x;
+    ws->view_pressed.y = y;
   }
 }
 
 
-/* HANDLE A MOUSE RELEASE EVENT.  Actually does something, if the release
-   is for the same control as the previous press. */
+/* HANDLE A MOUSE RELEASE EVENT.  
+
+   For a release after a press in the view area, we record that it is
+   no longer pressed, so shifting of the view will stop.
+
+   For a release in the control area, something may actually be done now, 
+   if the press was also in the control area. */
 
 static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y)
 { 
-  sfFloatRect bounds;
-  int i, j;
+  int in_control_area = ws->control_pressed && y > ws->height - c_height;
 
-  if (!ws->control_pressed || y <= c_height)
-  { return;
-  }
-
-  ws->control_pressed = 0;
-
-  bounds = sfVertexArray_getBounds(ws->pause_button);
-  if (sfFloatRect_contains(&bounds,x,y))
-  { ws->running = !ws->running;
+  if (ws->view_area_pressed)
+  { ws->view_area_pressed = 0;
     goto reset_running;
   }
 
-  for (i = 0; i < N_SPEEDS; i++)
-  { bounds = sfCircleShape_getGlobalBounds(ws->speeds[i]);
+  if (in_control_area)
+  {
+    sfFloatRect bounds;
+    int i, j;
+
+    ws->control_pressed = 0;
+
+    bounds = sfVertexArray_getBounds(ws->pause_button);
     if (sfFloatRect_contains(&bounds,x,y))
-    { ws->sim_speed = 1<<i;
-      for (j = 0; j < N_SPEEDS; j++)
-      { sfCircleShape_setFillColor (ws->speeds[j], j==i ? sfWhite : 
-                                               sfColor_fromRGB (150, 150, 150));
-      }
+    { ws->running = !ws->running;
       goto reset_running;
+    }
+
+    for (i = 0; i < N_SPEEDS; i++)
+    { bounds = sfCircleShape_getGlobalBounds(ws->speeds[i]);
+      if (sfFloatRect_contains(&bounds,x,y))
+      { ws->sim_speed = 1<<i;
+        for (j = 0; j < N_SPEEDS; j++)
+        { sfCircleShape_setFillColor (ws->speeds[j], j==i ? sfWhite : 
+                                       sfColor_fromRGB (150, 150, 150));
+        }
+        goto reset_running;
+      }
     }
   }
 
@@ -367,4 +367,6 @@ reset_running:
   { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
     ws->start_sim_time = ds->sim_time;
   }
+
+  return;
 }

@@ -1,0 +1,68 @@
+/* DYNUI.H - Header file for interace of user interface to simulation.
+   Copyright 2020 by Radford M. Neal
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <SFML/Graphics.h>
+#include <SFML/System.h>
+
+
+/* CONTROL AREA PARAMETERS. */
+
+static int c_height = 22;	/* c_height-4 must be divisible by 2, and
+                                   c_height-10 must be divisible by 3 */
+
+#define N_SPEEDS  4		/* Number speed settings */
+
+
+/* WINDOW STATE. */
+
+struct window_state
+{
+  int width;			/* Width of window */
+  int height;			/* Height of window */
+  char *title;			/* Title for window */
+
+  sfRenderWindow *window;	/* SFML window */
+  sfFont *font;			/* Font used for text items */
+
+  sfVector2i offset;		/* Offset of centre of window */
+
+  int view_area_pressed;	/* Mouse was pressed in view area */
+  sfVector2i view_pressed;	/* Coordinates of press in view area */
+  int control_pressed;		/* Mouse was pressed in control region */
+  int running;			/* Is simulation running? */
+
+  sfRectangleShape *boundary;	/* Line (rect) separating controls from view */
+  sfRectangleShape *controls;	/* Rectangle in which controls reside */
+
+  sfVertexArray *run_button;	/* Button to let simulation run */
+  sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
+  sfCircleShape *speeds[N_SPEEDS]; /* Speed control buttons */
+
+  sfClock *clock;		/* Clock used to control speed */
+  double start_real_time;	/* Real elapsed time from start of run */
+  double start_sim_time;	/* Simulation time from start of run */
+  double sim_speed;		/* Speed of simulation */
+  int running_behind;		/* Was simulation too slow for desired speed? */
+};
+
+
+/* STATE OF DYNAMIC SIMULATION. */
+
+struct dynamic_state
+{ 
+  double sim_time;		/* Current simulation time */
+
+  void *i;			/* Additional information */
+};
+
+
+/* PROCEDURES IMPLEMENTING THE DYNAMIC SIMULATION. */
+
+extern void dynui_start (struct dynamic_state *ds, int argc, char **argv);
+extern void dynui_destroy (struct dynamic_state *ds);
+extern void dynui_advance (struct dynamic_state *ds);
+extern void dynui_view (struct dynamic_state *ds, struct window_state *window);

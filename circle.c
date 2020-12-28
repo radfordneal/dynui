@@ -1,8 +1,8 @@
-/* CIRCLE - Test dynamic program that moves dot in a circle.
+/* CIRCLE.C - Test dynamic program that moves dot in a circle.
    Copyright 2020 by Radford M. Neal
  */
 
-#include "dynamic.h"
+#include "dynui.h"
 
 
 /* INITIALIZE THE SIMULATION. */
@@ -38,27 +38,30 @@ void dynui_advance (struct dynamic_state *ds)
 
 /* DRAW VIEW OF SIMULATION. */
 
-void dynui_view (struct dynamic_state *ds, sfRenderWindow *window,
-                 int width, int height)
+void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 { 
+  int width = ws->width;
+  int height = ws->height - c_height;
+
   sfCircleShape *dot = sfCircleShape_create();
 
-  sfVector2f origin = { width/2 - 2, height/2 - 2 };
+  sfVector2f origin = { ws->offset.x + width/2 - 2, 
+                        ws->offset.y + height/2 - 2 };
   sfCircleShape_setRadius (dot, 4);
   sfCircleShape_setFillColor (dot, sfWhite);
   sfCircleShape_setPosition (dot, origin);
 
-  sfRenderWindow_drawCircleShape (window, dot, NULL);
+  sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
 
   double theta = *(double*)ds->i;
-  sfVector2f pos = { width/2 + 100*cos(theta) - 2, 
-                     height/2 + 100*sin(theta) - 2 };
+  sfVector2f pos = { ws->offset.x + width/2 + 100*cos(theta) - 2, 
+                     ws->offset.y + height/2 + 100*sin(theta) - 2 };
 
   sfCircleShape_setRadius (dot, 4);
   sfCircleShape_setFillColor (dot, sfRed);
   sfCircleShape_setPosition (dot, pos);
 
-  sfRenderWindow_drawCircleShape (window, dot, NULL);
+  sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
 
   sfCircleShape_destroy(dot);
 }
