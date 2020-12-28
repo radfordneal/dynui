@@ -135,7 +135,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         oldgap = HUGE_VAL;
         ws->running_behind = 0;
         for (;;) 
-        { current_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+        { current_time 
+            = 1e-6 * sfTime_asMicroseconds (sfClock_getElapsedTime (ws->clock));
           gap = ws->sim_speed * (current_time - ws->start_real_time) 
                  - (ds->sim_time - ws->start_sim_time);
           if (gap <= 0)
