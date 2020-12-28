@@ -94,7 +94,8 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     sfEvent event;
     while (sfRenderWindow_pollEvent (ws->window, &event))
     {
-      if (event.type == sfEvtClosed)
+      if (event.type == sfEvtClosed 
+       || event.type == sfEvtKeyPressed && event.key.code == sfKeyEscape)
       { sfRenderWindow_close (ws->window);
       }
       else if (event.type == sfEvtMouseButtonPressed)
@@ -292,7 +293,8 @@ static void create_controls (struct window_state *ws)
   /* Text of simulation time. */
 
   ws->sim_time_display = sfText_create();
-  sfVector2f t = { ws->width-5.2*(c_height-4), ws->height-c_height-1 }; 
+  sfVector2f t = { ws->width-5.2*(c_height-4)-3*c_height, 
+                   ws->height-c_height-1 }; 
   sfText_setPosition (ws->sim_time_display, t);
   sfText_setFont (ws->sim_time_display, ws->font);
   sfText_setCharacterSize (ws->sim_time_display, c_height-4);
