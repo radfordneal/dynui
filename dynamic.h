@@ -14,7 +14,6 @@
 struct dynamic_state
 { 
   double sim_time;		/* Current simulation time */
-  double sim_speed;		/* Speed of simulation */
 
   void *i;			/* Additional information */
 };

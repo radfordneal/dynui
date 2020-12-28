@@ -32,7 +32,7 @@ void dynui_advance (struct dynamic_state *ds)
 {
   *(double*)ds->i = fmod (*(double*)ds->i + delta_t, 2*M_PI);
   ds->sim_time += delta_t;
-  // sfSleep (sfSeconds (0.5));
+  // sfSleep (sfSeconds (0.006));  /* for testing running behind indicator */
 }
 
 

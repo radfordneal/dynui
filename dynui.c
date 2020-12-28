@@ -5,6 +5,14 @@
 #include "dynamic.h"
 
 
+/* CONTROL AREA PARAMETERS. */
+
+static int c_height = 22;	/* c_height-4 must be divisible by 2, and
+                                   c_height-10 must be divisible by 3 */
+
+#define N_SPEEDS  4		/* Number speed settings */
+
+
 /* WINDOW STATE. */
 
 struct window_state
@@ -24,18 +32,15 @@ struct window_state
 
   sfVertexArray *run_button;	/* Button to let simulation run */
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
+  sfCircleShape *speeds[N_SPEEDS]; /* Speed control buttons */
 
   sfClock *clock;		/* Clock used to control speed */
   double start_real_time;	/* Real elapsed time from start of run */
   double start_sim_time;	/* Simulation time from start of run */
   double sim_speed;		/* Speed of simulation */
+  int running_behind;		/* Was simulation too slow for desired speed? */
 };
 
-
-/* HEIGHT OF CONTROL AREA AT BOTTOM OF WINDOW. */
-
-static int c_height = 22;	/* c_height-4 must be divisible by 2, and
-                                   c_height-10 must be divisible by 3 */
 
 /* MAIN PROGRAM. */
 
@@ -75,6 +80,8 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
 static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
+  int i;
+
   /* Create the window, with specified size and title. */
 
   sfVideoMode mode = {ws->width, ws->height, 32};
@@ -93,15 +100,18 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   ws->clock = sfClock_create();
 
+  /* Set initial values for state. */
+
+  ws->sim_speed = 1;
+  ws->control_pressed = 0;
+  ws->running = 0;
+  ws->running_behind = 0;
+
   /* Create user control items. */
 
   create_controls (ws);
 
   /* The main user interaction loop. */
-
-  ws->sim_speed = 1;
-  ws->control_pressed = 0;
-  ws->running = 0;
 
   while (sfRenderWindow_isOpen(ws->window))
   {
@@ -130,16 +140,36 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     { double current_time;
       double gap, oldgap;
       oldgap = HUGE_VAL;
+      if (ws->running_behind)
+      { for (i = 0; i < N_SPEEDS; i++)
+        { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
+                                      sfWhite : sfColor_fromRGB(150, 150, 150));
+        }
+      }
+      ws->running_behind = 0;
       for (;;) 
       { current_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
         gap = ws->sim_speed * (current_time - ws->start_real_time) 
                - (ds->sim_time - ws->start_sim_time);
-        if (gap <= 0 || gap > 0.9*oldgap) break;
+        if (gap <= 0)
+        { break;
+        }
+        if (gap > 0.9*oldgap) 
+        { ws->running_behind = 1;
+          break;
+        }
         dynui_advance (ds);
         oldgap = gap;
       }
     }
 
+    if (ws->running_behind)
+    { for (i = 0; i < N_SPEEDS; i++)
+      { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
+                                    sfRed : sfColor_fromRGB (150, 150, 150));
+      }
+    }
+          
     /* Redraw the window. */
 
     sfRenderWindow_clear (ws->window, sfBlack);
@@ -166,6 +196,14 @@ static sfVector2f zero_vector = { 0, 0 };
 
 static void create_controls (struct window_state *ws)
 {
+  int x, y, h, w, i;
+  sfVector2f p;
+
+  sfVertex v;
+  v.position = zero_vector;
+  v.color = sfWhite;
+  v.texCoords = zero_vector;
+
   /* Control area and boundary. */
 
   ws->boundary = sfRectangleShape_create();
@@ -190,15 +228,10 @@ static void create_controls (struct window_state *ws)
 
   /* Run and pause buttons. */
 
-  int x = 5;
-  int y = ws->height - c_height + 2;
-  int h = c_height - 4;
-  int w = c_height - 10;
-
-  sfVertex v;
-  v.position = zero_vector;
-  v.color = sfWhite;
-  v.texCoords = zero_vector;
+  x = 5;
+  y = ws->height - c_height + 2;
+  h = c_height - 4;
+  w = c_height - 10;
 
   ws->run_button = sfVertexArray_create();
   v.position.x = x;
@@ -231,6 +264,22 @@ static void create_controls (struct window_state *ws)
   v.position.y = y;
   sfVertexArray_append (ws->pause_button, v);
   sfVertexArray_setPrimitiveType (ws->pause_button, sfQuads);
+
+  /* Speed controls. */
+
+  x = 30;
+  y = ws->height - c_height + 6;
+  h = c_height - 12;
+
+  for (i = 0; i < N_SPEEDS; i++)
+  { ws->speeds[i] = sfCircleShape_create();
+    p.x = x + (h+3)*i;
+    p.y = y;
+    sfCircleShape_setPosition (ws->speeds[i], p);
+    sfCircleShape_setRadius (ws->speeds[i], h/2);
+    sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ? sfWhite :
+                                               sfColor_fromRGB (150, 150, 150));
+  }
 }
 
 
@@ -238,6 +287,8 @@ static void create_controls (struct window_state *ws)
 
 static void draw_controls (struct window_state *ws) 
 {
+  int i;
+
   sfRenderWindow_drawRectangleShape (ws->window, ws->boundary, NULL);
   sfRenderWindow_drawRectangleShape (ws->window, ws->controls, NULL);
 
@@ -247,14 +298,22 @@ static void draw_controls (struct window_state *ws)
   else
   { sfRenderWindow_drawVertexArray (ws->window, ws->run_button, NULL);
   }
+
+  for (i = 0; i < N_SPEEDS; i++)
+  { sfRenderWindow_drawCircleShape (ws->window, ws->speeds[i], NULL);
+  }
 }
 
 
 /* DESTROY USER CONTROLS. */
 
 static void destroy_controls (struct window_state *ws)
-{ sfRectangleShape_destroy (ws->boundary);
+{ int i;
+  sfRectangleShape_destroy (ws->boundary);
   sfRectangleShape_destroy (ws->controls);
+  for (i = 0; i < N_SPEEDS; i++)
+  { sfCircleShape_destroy (ws->speeds[i]);
+  }
 }
 
 
@@ -273,12 +332,39 @@ static void mouse_press (struct window_state *ws, int x, int y)
 
 static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y)
-{ if (ws->control_pressed && y > c_height)
+{ 
+  sfFloatRect bounds;
+  int i, j;
+
+  if (!ws->control_pressed || y <= c_height)
+  { return;
+  }
+
+  ws->control_pressed = 0;
+
+  bounds = sfVertexArray_getBounds(ws->pause_button);
+  if (sfFloatRect_contains(&bounds,x,y))
   { ws->running = !ws->running;
-    if (ws->running)
-    { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
-      ws->start_sim_time = ds->sim_time;
+    goto reset_running;
+  }
+
+  for (i = 0; i < N_SPEEDS; i++)
+  { bounds = sfCircleShape_getGlobalBounds(ws->speeds[i]);
+    if (sfFloatRect_contains(&bounds,x,y))
+    { ws->sim_speed = 1<<i;
+      for (j = 0; j < N_SPEEDS; j++)
+      { sfCircleShape_setFillColor (ws->speeds[j], j==i ? sfWhite : 
+                                               sfColor_fromRGB (150, 150, 150));
+      }
+      goto reset_running;
     }
-    ws->control_pressed = 0;
+  }
+
+  return;
+
+reset_running:
+  if (ws->running)
+  { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+    ws->start_sim_time = ds->sim_time;
   }
 }
