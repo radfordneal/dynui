@@ -45,7 +45,7 @@ struct window_state
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
   sfCircleShape *speeds[N_SPEEDS];    /* Speed control buttons */
   sfRectangleShape *scales[N_SCALES]; /* Zoom buttons */
-  sfVertexArray *exit_button;	/* Button close window */
+  sfVertexArray *full_button;	/* Button to enter or exit full screen mode */
 
   sfText *sim_time_display;	/* Textual display of simulation time */
 

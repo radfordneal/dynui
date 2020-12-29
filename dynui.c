@@ -29,7 +29,7 @@ int main (int argc, char **argv)
   struct window_state ws;
   ws.width = 600;
   ws.height = 500;
-  ws.title = "DYNUI TEST";
+  ws.title = argc > 0 ? argv[0] : "";
   ws.running = 0;
   ws.full_screen = 0;
 
@@ -48,6 +48,8 @@ static void destroy_controls (struct window_state *ws);
 static void mouse_press (struct window_state *ws, int x, int y);
 static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y);
+
+static void set_start_time (struct dynamic_state *ds, struct window_state *ws);
 
 static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
@@ -89,11 +91,15 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   ws->clock = sfClock_create();
 
-  /* Set initial values for state. */
+  /* Set initial values for state.  Some are assumed already set if we're
+     entering full screen model. */
 
-  ws->offset = zero_vector_f;
-  ws->scale = 1;
-  ws->sim_speed = 1;
+  if (!ws->full_screen)
+  { ws->offset = zero_vector_f;
+    ws->scale = 1;
+    ws->sim_speed = 1;
+  }
+
   ws->view_area_pressed = 0;
   ws->control_pressed = 0;
   ws->running_behind = 0;
@@ -105,10 +111,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
   /* The main user interaction loop. */
 
-  if (ws->running)
-  { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
-    ws->start_sim_time = ds->sim_time;
-  }
+  set_start_time (ds, ws);
 
   while (sfRenderWindow_isOpen(ws->window))
   {
@@ -170,7 +173,7 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
           if (gap <= 0)
           { break;
           }
-          if (gap > 0.9*oldgap) 
+          if (gap > 0.95*oldgap) 
           { ws->running_behind = 1;
             break;
           }
@@ -333,26 +336,55 @@ static void create_controls (struct window_state *ws)
   sfText_setCharacterSize (ws->sim_time_display, c_height-4);
   sfText_setString (ws->sim_time_display, "");
 
-  /* Exit button. */
+  /* Full screen enter/exit button. */
 
   x = ws->width - c_height;
   y = ws->height - c_height + 4;
   h = c_height - 8;
 
-  ws->exit_button = sfVertexArray_create();
-  v.position.x = x;
-  v.position.y = y;
-  sfVertexArray_append (ws->exit_button, v);
-  v.position.x = x+h;
-  v.position.y = y+h;
-  sfVertexArray_append (ws->exit_button, v);
-  v.position.x = x;
-  v.position.y = y+h;
-  sfVertexArray_append (ws->exit_button, v);
-  v.position.x = x+h;
-  v.position.y = y;
-  sfVertexArray_append (ws->exit_button, v);
-  sfVertexArray_setPrimitiveType (ws->exit_button, sfLines);
+  ws->full_button = sfVertexArray_create();
+    
+  if (ws->full_screen)
+  { v.position.x = x;
+    v.position.y = y;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h;
+    v.position.y = y+h;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x;
+    v.position.y = y+h;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h;
+    v.position.y = y;
+    sfVertexArray_append (ws->full_button, v);
+  }
+  else
+  { v.position.x = x;
+    v.position.y = y+h;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.y = y+h-h/2;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x;
+    v.position.y = y+h;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h/2;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x;
+    v.position.y = y+h;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h;
+    v.position.y = y;
+    sfVertexArray_append (ws->full_button, v);
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h-h/2;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.x = x+h;
+    v.position.y = y;
+    sfVertexArray_append (ws->full_button, v);
+    v.position.y = y+h/2;
+    sfVertexArray_append (ws->full_button, v);
+  }
+  sfVertexArray_setPrimitiveType (ws->full_button, sfLines);
 }
 
 
@@ -382,7 +414,7 @@ static void draw_controls (struct window_state *ws)
 
   sfRenderWindow_drawText (ws->window, ws->sim_time_display, NULL);
 
-  sfRenderWindow_drawVertexArray (ws->window, ws->exit_button, NULL);
+  sfRenderWindow_drawVertexArray (ws->window, ws->full_button, NULL);
 }
 
 
@@ -401,7 +433,7 @@ static void destroy_controls (struct window_state *ws)
   { sfRectangleShape_destroy (ws->scales[i]);
   }
   sfText_destroy (ws->sim_time_display);
-  sfVertexArray_destroy (ws->exit_button);
+  sfVertexArray_destroy (ws->full_button);
 }
 
 
@@ -432,7 +464,16 @@ static void mouse_press (struct window_state *ws, int x, int y)
    no longer pressed, so shifting of the view will stop.
 
    For a release in the control area, something may actually be done now, 
-   if the press was also in the control area. */
+   if the press was also in the control area.  
+
+   Checks for whether the release was for a certain control looks slightly 
+   outside the bounding box, to make missing less likely. */
+
+static int in_bounds (sfFloatRect bounds, int x, int y)
+{ bounds.left -= 3; bounds.top -= 3; 
+  bounds.width += 3; bounds.height += 3;
+  return sfFloatRect_contains (&bounds, x, y);
+}
 
 static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y)
@@ -441,59 +482,94 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
   if (ws->view_area_pressed)
   { ws->view_area_pressed = 0;
-    goto reset_running;
+    set_start_time (ds, ws);
+    return;
   }
 
   if (in_control_area)
   {
-    sfFloatRect bounds;
     int i, j;
 
     ws->control_pressed = 0;
 
-    bounds = sfVertexArray_getBounds(ws->pause_button);
-    if (sfFloatRect_contains(&bounds,x,y))
+    if (in_bounds (sfVertexArray_getBounds(ws->pause_button), x, y))
     { ws->running = !ws->running;
-      goto reset_running;
+      set_start_time (ds, ws);
+      return;
     }
 
     for (i = 0; i < N_SPEEDS; i++)
-    { bounds = sfCircleShape_getGlobalBounds(ws->speeds[i]);
-      if (sfFloatRect_contains(&bounds,x,y))
+    { if (in_bounds (sfCircleShape_getGlobalBounds(ws->speeds[i]), x, y))
       { ws->sim_speed = 1<<i;
         for (j = 0; j < N_SPEEDS; j++)
-        { sfCircleShape_setFillColor (ws->speeds[j], j==i ? sfWhite : 
-                                       sfColor_fromRGB (150, 150, 150));
+        { sfCircleShape_setFillColor (ws->speeds[j], 
+            ws->sim_speed == 1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
         }
-        goto reset_running;
+        set_start_time (ds, ws);
+        return;
       }
     }
 
     for (i = 0; i < N_SCALES; i++)
-    { bounds = sfRectangleShape_getGlobalBounds(ws->scales[i]);
-      if (sfFloatRect_contains(&bounds,x,y))
+    { if (in_bounds (sfRectangleShape_getGlobalBounds(ws->scales[i]), x, y))
       { ws->scale = 1<<i;
         for (j = 0; j < N_SCALES; j++)
-        { sfRectangleShape_setFillColor (ws->scales[j], j==i ? sfWhite : 
-                                        sfColor_fromRGB (150, 150, 150));
+        { sfRectangleShape_setFillColor (ws->scales[j], 
+            ws->scale ==1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
         }
-        goto reset_running;
+        set_start_time (ds, ws);
+        return;
       }
     }
 
-    bounds = sfVertexArray_getBounds(ws->exit_button);
-    if (sfFloatRect_contains(&bounds,x,y))
-    { ws->exit = 1;
+    if (in_bounds (sfVertexArray_getBounds(ws->full_button), x, y))
+    { if (ws->full_screen)
+      { ws->exit = 1;
+      }
+      else
+      { 
+        /* Create a full-screen window, and let it handle things until the
+           user exits from it.  Transfer some settings from this window to 
+           the full-screen one, and back. */
+
+        struct window_state fws;
+        fws.full_screen = 1;
+        fws.title = "";
+
+        fws.running = ws->running;
+        fws.offset = ws->offset;
+        fws.scale = ws->scale;
+        fws.sim_speed = ws->sim_speed;
+
+        dynui_window (ds, &fws);
+
+        ws->running = fws.running;
+        ws->offset = fws.offset;
+        ws->scale = fws.scale;
+        ws->sim_speed = fws.sim_speed;
+
+        for (j = 0; j < N_SPEEDS; j++)
+        { sfCircleShape_setFillColor (ws->speeds[j], 
+            ws->sim_speed == 1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+        }
+        for (j = 0; j < N_SCALES; j++)
+        { sfRectangleShape_setFillColor (ws->scales[j], 
+            ws->scale ==1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+        }
+
+        set_start_time (ds, ws);
+      }
+      return;
     }
   }
+}
 
-  return;
 
-reset_running:
-  if (ws->running)
+/* SET THE START TIMES FOR THE CURRENT RUNNING PERIOD. */
+
+void set_start_time (struct dynamic_state *ds, struct window_state *ws)
+{ if (ws->running)
   { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
     ws->start_sim_time = ds->sim_time;
   }
-
-  return;
 }
