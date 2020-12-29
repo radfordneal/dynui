@@ -30,6 +30,8 @@ int main (int argc, char **argv)
   ws.width = 600;
   ws.height = 500;
   ws.title = "DYNUI TEST";
+  ws.running = 0;
+  ws.full_screen = 0;
 
   dynui_window (&ds, &ws);
 
@@ -51,14 +53,30 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
   int i;
 
-  /* Create the window, with specified size and title. */
+  /* Create the window, with specified size & title, or instead full screen. */
 
-  sfVideoMode mode = {ws->width, ws->height, 32};
-  ws->window = sfRenderWindow_create(mode, ws->title, sfClose|sfTitlebar, NULL);
+  if (ws->full_screen)
+  { ws->window = sfRenderWindow_create (sfVideoMode_getDesktopMode(), ws->title,
+                                        sfFullscreen, NULL);
+  }
+  else
+  { sfVideoMode mode = { ws->width, ws->height, 32 };
+    ws->window = sfRenderWindow_create (mode, ws->title, 
+                                        sfClose | sfTitlebar, NULL);
+  }
+
   if (ws->window == NULL) exit(1);
 
-  sfVector2i window_pos = { 10, 10 };
-  sfRenderWindow_setPosition (ws->window, window_pos);
+  if (ws->full_screen)
+  { sfVector2u size = sfRenderWindow_getSize (ws->window);
+    ws->width = size.x;
+    ws->height = size.y;
+  }
+
+  if (!ws->full_screen)
+  { sfVector2i window_pos = { 10, 10 };
+    sfRenderWindow_setPosition (ws->window, window_pos);
+  }
 
   sfRenderWindow_setVerticalSyncEnabled (ws->window, 1);
 
@@ -78,7 +96,6 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   ws->sim_speed = 1;
   ws->view_area_pressed = 0;
   ws->control_pressed = 0;
-  ws->running = 0;
   ws->running_behind = 0;
   ws->exit = 0;
 
@@ -87,6 +104,11 @@ static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   create_controls (ws);
 
   /* The main user interaction loop. */
+
+  if (ws->running)
+  { ws->start_real_time = sfTime_asSeconds(sfClock_getElapsedTime(ws->clock));
+    ws->start_sim_time = ds->sim_time;
+  }
 
   while (sfRenderWindow_isOpen(ws->window))
   {
@@ -370,9 +392,16 @@ static void destroy_controls (struct window_state *ws)
 { int i;
   sfRectangleShape_destroy (ws->boundary);
   sfRectangleShape_destroy (ws->controls);
+  sfVertexArray_destroy (ws->pause_button);
+  sfVertexArray_destroy (ws->run_button);
   for (i = 0; i < N_SPEEDS; i++)
   { sfCircleShape_destroy (ws->speeds[i]);
   }
+  for (i = 0; i < N_SCALES; i++)
+  { sfRectangleShape_destroy (ws->scales[i]);
+  }
+  sfText_destroy (ws->sim_time_display);
+  sfVertexArray_destroy (ws->exit_button);
 }
 
 

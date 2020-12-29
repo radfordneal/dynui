@@ -22,6 +22,7 @@ static int c_height = 22;	/* c_height-4 must be divisible by 2, and
 
 struct window_state
 {
+  int full_screen;		/* Is this a full-screen window? */
   int width;			/* Width of window */
   int height;			/* Height of window */
   char *title;			/* Title for window */
