@@ -5,28 +5,36 @@
 #include "dynui.h"
 
 
-/* ZERO VECTORS.  For convenience. */
+/* MAIN PROGRAM. */
 
-static sfVector2f zero_vector_f = { 0, 0 };
-static sfVector2i zero_vector_i = { 0, 0 };
-
-
-/* INITIALIZE THE SIMULATION. */
-
-void dynui_start (struct dynamic_state *ds, int argc, char **argv)
+int main (int argc, char **argv)
 {
-  ds->i = calloc (1, sizeof (double));
-  if (ds->i == NULL) exit(3);
+  /* Allocate and initialize dynamic state. */
 
-  *(double*)ds->i = 0;
-}
+  struct dynamic_state ds;
 
+  ds.i = calloc (1, sizeof (double));
+  if (ds.i == NULL) exit(3);
+  *(double*)ds.i = 0;
 
-/* RECOVER MEMORY FOR SIMULATION. */
+  ds.sim_time = 0;
 
-void dynui_destroy (struct dynamic_state *ds)
-{
-  free (ds->i);
+  /* Allocate window state and initialize application-specified fields. */
+
+  struct window_state ws;
+
+  ws.width = 600;
+  ws.height = 500;
+  ws.title = "circle";
+  ws.running = 0;
+  ws.full_screen = 0;
+
+  /* Create window and let user interact with it, with simulation running
+     when requested. */
+
+  dynui_window (&ds, &ws);
+
+  exit(0);
 }
 
 

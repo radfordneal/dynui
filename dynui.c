@@ -11,35 +11,7 @@ static sfVector2f zero_vector_f = { 0, 0 };
 static sfVector2i zero_vector_i = { 0, 0 };
 
 
-/* MAIN PROGRAM. */
-
-static void dynui_window (struct dynamic_state *ds, struct window_state *ws);
-
-int main (int argc, char **argv)
-{
-  /* Create dynamic state and start simulation (initially paused). */
-
-  struct dynamic_state ds;
-  ds.sim_time = 0;
-
-  dynui_start (&ds, argc, argv);
-
-  /* Create and interact with window for display and control of simulation. */
-
-  struct window_state ws;
-  ws.width = 600;
-  ws.height = 500;
-  ws.title = argc > 0 ? argv[0] : "";
-  ws.running = 0;
-  ws.full_screen = 0;
-
-  dynui_window (&ds, &ws);
-
-  exit(0);
-}
-
-
-/* HANDLE INTERACTION WITH A WINDOW. */
+/* CREATE AND INTERACT WITH A WINDOW ON A DYNAMIC SIMULATION. */
 
 static void create_controls (struct window_state *ws);
 static void draw_controls (struct window_state *ws);
@@ -51,7 +23,7 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
 static void set_start_time (struct dynamic_state *ds, struct window_state *ws);
 
-static void dynui_window (struct dynamic_state *ds, struct window_state *ws)
+void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
   int i;
 

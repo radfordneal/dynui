@@ -69,9 +69,12 @@ struct dynamic_state
 };
 
 
-/* PROCEDURES IMPLEMENTING THE DYNAMIC SIMULATION. */
+/* PROCEDURE USED BY THE APPLICATION TO CREATE AND HANDLE A WINDOW. */
 
-extern void dynui_start (struct dynamic_state *ds, int argc, char **argv);
-extern void dynui_destroy (struct dynamic_state *ds);
+extern void dynui_window (struct dynamic_state *ds, struct window_state *ws);
+
+
+/* PROCEDURES PROVIDED BY THE APPLICATION. */
+
 extern void dynui_advance (struct dynamic_state *ds);
 extern void dynui_view (struct dynamic_state *ds, struct window_state *window);
