@@ -311,6 +311,32 @@ static void create_controls (struct window_state *ws)
   sfText_setCharacterSize (ws->sim_time_display, c_height-4);
   sfText_setString (ws->sim_time_display, "");
 
+  /* Save button. */
+
+  x = 0.65* ws->width;
+  y = ws->height - c_height + 3;
+  h = c_height - 7;
+
+  ws->save_button = sfVertexArray_create();
+    
+  v.position.x = x+5;
+  v.position.y = y;
+  sfVertexArray_append (ws->save_button, v);
+  v.position.y = y+h;
+  sfVertexArray_append (ws->save_button, v);
+  sfVertexArray_append (ws->save_button, v);
+  v.position.x = x;
+  v.position.y = y+h-5;
+  sfVertexArray_append (ws->save_button, v);
+  v.position.x = x+5;
+  v.position.y = y+h;
+  sfVertexArray_append (ws->save_button, v);
+  v.position.x = x+10;
+  v.position.y = y+h-5;
+  sfVertexArray_append (ws->save_button, v);
+
+  sfVertexArray_setPrimitiveType (ws->save_button, sfLines);
+
   /* Full screen enter/exit button. */
 
   x = ws->width - c_height;
@@ -386,6 +412,8 @@ static void draw_controls (struct window_state *ws)
   for (i = 0; i < N_SCALES; i++)
   { sfRenderWindow_drawRectangleShape (ws->window, ws->scales[i], NULL);
   }
+
+  sfRenderWindow_drawVertexArray (ws->window, ws->save_button, NULL);
 
   sfRenderWindow_drawText (ws->window, ws->sim_time_display, NULL);
 
@@ -467,11 +495,33 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
     ws->control_pressed = 0;
 
+    /* Run/pause button. */
+
     if (in_bounds (sfVertexArray_getBounds(ws->pause_button), x, y))
     { ws->running = !ws->running;
       set_start_time (ds, ws);
       return;
     }
+
+    /* Save button. */
+
+    if (in_bounds (sfVertexArray_getBounds(ws->save_button), x, y))
+    { int success = dynui_save(ds);
+      for (i = sfVertexArray_getVertexCount(ws->save_button)-1; i >= 0; i--)
+      { sfVertexArray_getVertex(ws->save_button,i)->color 
+          = success ? sfGreen : sfRed;
+      }
+      sfRenderWindow_drawVertexArray (ws->window, ws->save_button, NULL);
+      sfRenderWindow_display (ws->window);
+      sfSleep (sfSeconds(0.25));
+      for (i = sfVertexArray_getVertexCount(ws->save_button)-1; i >= 0; i--)
+      { sfVertexArray_getVertex(ws->save_button,i)->color = sfWhite;
+      }
+      set_start_time (ds, ws);
+      return;
+    }
+
+    /* Speed controls. */
 
     for (i = 0; i < N_SPEEDS; i++)
     { if (in_bounds (sfCircleShape_getGlobalBounds(ws->speeds[i]), x, y))
@@ -485,6 +535,8 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
       }
     }
 
+    /* Zoom controls. */
+
     for (i = 0; i < N_SCALES; i++)
     { if (in_bounds (sfRectangleShape_getGlobalBounds(ws->scales[i]), x, y))
       { ws->scale = 1<<i;
@@ -496,6 +548,8 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         return;
       }
     }
+
+    /* Full screen / exit screen button. */
 
     if (in_bounds (sfVertexArray_getBounds(ws->full_button), x, y))
     { if (ws->full_screen)

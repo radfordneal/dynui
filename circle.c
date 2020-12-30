@@ -83,6 +83,13 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 }
 
 
+/* SAVE STATE.  Returns 1 if succesful, 0 if not. */
+
+int dynui_save (struct dynamic_state *ds)
+{ return 0;
+}
+
+
 /* TERMINATE PROGRAM. */
 
 void dynui_terminate()
