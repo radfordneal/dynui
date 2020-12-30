@@ -1,9 +1,9 @@
 # MAKEFILE FOR DYNUI PROGRAMS.
 
-all:	dynui-circle
+all:	circle
 
-dynui-circle:	dynui.o circle.o
-	cc -o dynui-circle dynui.o circle.o \
+circle:		dynui.o circle.o
+	cc -o circle dynui.o circle.o \
 	  -lm -lcsfml-graphics -lcsfml-window -lcsfml-system -lcsfml-audio
 
 dynui.o:	dynui.c dynui.h
