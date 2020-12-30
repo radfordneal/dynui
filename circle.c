@@ -34,7 +34,7 @@ int main (int argc, char **argv)
 
   dynui_window (&ds, &ws);
 
-  exit(0);
+  dynui_terminate();
 }
 
 
@@ -80,4 +80,11 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
   sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
 
   sfCircleShape_destroy(dot);
+}
+
+
+/* TERMINATE PROGRAM. */
+
+void dynui_terminate()
+{ exit(0);
 }

@@ -78,3 +78,4 @@ extern void dynui_window (struct dynamic_state *ds, struct window_state *ws);
 
 extern void dynui_advance (struct dynamic_state *ds);
 extern void dynui_view (struct dynamic_state *ds, struct window_state *window);
+extern void dynui_terminate (void);
