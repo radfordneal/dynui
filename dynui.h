@@ -14,7 +14,7 @@
 static int c_height = 22;	/* c_height-4 must be divisible by 2, and
                                    c_height-10 must be divisible by 3 */
 
-#define N_SPEEDS 4		/* Number speed settings */
+#define N_SPEEDS 7		/* Number speed settings */
 #define N_SCALES 4		/* Number of zoom settings */
 
 
