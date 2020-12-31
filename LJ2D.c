@@ -267,11 +267,17 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
     sfVector2f pos = { ws->scale * (ws->offset.x + qx[i] - W/2) + ox,
                        ws->scale * (ws->offset.y + qy[i] - H/2) + oy };
 
-    if (pos.x >= -scaled_radius && pos.x <= ws->width+scaled_radius
-     && pos.y >= -scaled_radius && pos.y <= ws->height+scaled_radius)
-    {
-      sfCircleShape_setPosition (dot, pos);
-      sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
+    while (pos.x >= -scaled_radius) pos.x -= ws->scale * W;
+    while (pos.x < -scaled_radius) pos.x += ws->scale * W;
+    while (pos.y >= -scaled_radius) pos.y -= ws->scale * H;
+    while (pos.y < -scaled_radius) pos.y += ws->scale * H;
+
+    sfVector2f p1, p2;
+    for (p1 = pos; p1.x <= ws->width+scaled_radius; p1.x += ws->scale * W)
+    { for (p2 = p1; p2.y <= ws->height+scaled_radius; p2.y += ws->scale * H)
+      { sfCircleShape_setPosition (dot, p2);
+        sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
+      }
     }
   }
 
