@@ -65,9 +65,9 @@ double norm (unsigned *seed)
 
 void usage (void)
 { fprintf (stderr, 
-   "Usage: LJ2D [ save-file ] W H N / alpha T [ initial-T ] [ / seed ]\n");
+   "Usage: LJ2D [ @time ] [ save-file ] W H N / alpha T [ initial-T ] [ / seed ]\n");
   fprintf (stderr, 
-   "   or: LJ2D save-file\n");
+   "   or: LJ2D [ @time ] save-file\n");
   exit(-1);
 }
 
@@ -77,23 +77,40 @@ void usage (void)
 int main (int argc, char **argv)
 {
   struct LJ_state LJ;
+  double target_time;
   int from_file;
   char junk;
   int i, p;
 
+  /* Allocate and initialize dynamic state. */
+
+  struct dynamic_state ds0, *ds = &ds0;
+  ds->i = (void *) &LJ;
+  ds->sim_time = 0;
+
+
   /* Parse program arguments, and perhaps read saved file. */
 
-  if (argc < 2)
+  p = 1;
+
+  target_time = -1;
+  if (argc > 1 && *argv[1] == '@')
+  { if (sscanf (argv[1]+1, "%lf%c", &target_time, &junk) != 1 || target_time<0)
+    { usage();
+    }
+    p += 1;
+  }
+
+  if (argc < p+1)
   { usage();
   }
 
-  if (sscanf (argv[1], "%lf%c", &LJ.W, &junk) != 1 || LJ.W <= 0)  /* file arg */
-  { save_file = argv[1];
-    p = 2;
+  if (sscanf (argv[p], "%lf%c", &LJ.W, &junk) != 1 || LJ.W <= 0)  /* file arg */
+  { save_file = argv[p];
+    p += 1;
   }
   else
   { save_file = "LJsave";
-    p = 1;
   }
 
   if (argc == p)  /* Read saved arguments and state from file */
@@ -104,7 +121,8 @@ int main (int argc, char **argv)
     { fprintf (stderr, "Can't read file\n");
       exit(-2);
     }
-    if (fread (&LJ.W, sizeof(LJ.W), 1, f) != 1
+    if (fread (&ds->sim_time, sizeof(ds->sim_time), 1, f) != 1
+     || fread (&LJ.W, sizeof(LJ.W), 1, f) != 1
      || fread (&LJ.H, sizeof(LJ.H), 1, f) != 1
      || fread (&LJ.N, sizeof(LJ.N), 1, f) != 1
      || fread (&LJ.T, sizeof(LJ.T), 1, f) != 1
@@ -169,18 +187,14 @@ int main (int argc, char **argv)
     }
   }
 
-  if (1)
+  if (0)
   { fprintf (stderr,
-     "file %s, W %.1f, H %.1f, N %d, alpha %.3f, T %.2f, initial_T %.2f\n",
-      save_file, LJ.W, LJ.H, LJ.N, LJ.alpha, LJ.T, LJ.initial_T);
+   "tt %f, file %s, W %.1f, H %.1f, N %d, alpha %.3f, T %.2f, initial_T %.2f\n",
+    target_time, save_file, LJ.W, LJ.H, LJ.N, LJ.alpha, LJ.T, LJ.initial_T);
     fprintf (stderr, "seed %u, start_seed %u\n", LJ.seed, LJ.start_seed);
   }
 
-  /* Allocate and initialize dynamic state. */
-
-  struct dynamic_state ds0, *ds = &ds0;
-  ds->i = (void *) &LJ;
-  ds->sim_time = 0;
+  /* Initialize positions and momenta, if not read from file. */
 
   if (!from_file)
   {
@@ -192,6 +206,22 @@ int main (int argc, char **argv)
       I(ds).px[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
       I(ds).py[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
     }
+  }
+
+  /* Run non-interactively if target time specified. */
+
+  if (target_time >= 0)
+  {
+    while (ds->sim_time < target_time)
+    { dynui_advance(ds);
+    }
+
+    if (!dynui_save(ds))
+    { fprintf (stderr, "Couldn't save to file\n");
+      exit(-3);
+    }
+
+    exit(0);
   }
 
   /* Allocate window state and initialize application-specified fields. */
@@ -404,7 +434,8 @@ int dynui_save (struct dynamic_state *ds)
   if (f == NULL)
   { return 0;
   }
-  if (fwrite (&I(ds).W, sizeof(I(ds).W), 1, f) != 1
+  if (fwrite (&ds->sim_time, sizeof(ds->sim_time), 1, f) != 1
+   || fwrite (&I(ds).W, sizeof(I(ds).W), 1, f) != 1
    || fwrite (&I(ds).H, sizeof(I(ds).H), 1, f) != 1
    || fwrite (&I(ds).N, sizeof(I(ds).N), 1, f) != 1
    || fwrite (&I(ds).T, sizeof(I(ds).T), 1, f) != 1
@@ -418,7 +449,9 @@ int dynui_save (struct dynamic_state *ds)
    || fwrite (I(ds).py, sizeof(*I(ds).py), I(ds).N, f) != I(ds).N)
   { return 0;
   }
-  fclose(f);
+  if (fclose(f) != 0)
+  { return 0;
+  }
   return 1;
 }
 
