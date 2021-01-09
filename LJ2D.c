@@ -1,5 +1,5 @@
 /* LJ2D.C - Program for simulating dynamics of Lennard-Jones particles in 2D.
-   Copyright 2020 by Radford M. Neal
+   Copyright 2021 by Radford M. Neal
  */
 
 #include "dynui.h"
@@ -10,7 +10,8 @@
 struct LJ_state
 { double W, H;		/* Width and height of area */
   int N;		/* Number of particles */
-  double T;		/* Temperature */
+  double initial_T;	/* Initial temperature */
+  double T;		/* Equilibrium temperature */
   double alpha;		/* Temperature refresh constant, 1 = no refresh */
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
@@ -38,6 +39,15 @@ double norm (unsigned *seed)
 }
 
 
+/* PRINT USAGE MESSAGE AND EXIT. */
+
+void usage (void)
+{ fprintf (stderr, 
+   "Usage: LJ2D width height N-particles / alpha temp [ initial-temp ] [ / seed ]\n");
+  exit(-1);
+}
+
+
 /* MAIN PROGRAM. */
 
 int main (int argc, char **argv)
@@ -48,16 +58,45 @@ int main (int argc, char **argv)
 
   /* Parse program arguments. */
 
-  if (argc != 7
-   || sscanf (argv[1], "%lf%c", &LJ.W,     &junk) != 1 || LJ.W <= 0
+  if (argc < 7)
+  { usage();
+  }
+
+  LJ.initial_T = -1;
+  LJ.seed = 1;
+
+  if (sscanf (argv[1], "%lf%c", &LJ.W,     &junk) != 1 || LJ.W <= 0
    || sscanf (argv[2], "%lf%c", &LJ.H,     &junk) != 1 || LJ.H <= 0
    || sscanf (argv[3], "%d%c",  &LJ.N,     &junk) != 1 || LJ.N <= 0
-   || sscanf (argv[4], "%lf%c", &LJ.T,     &junk) != 1 || LJ.T < 0
+   || strcmp (argv[4], "/") != 0
    || sscanf (argv[5], "%lf%c", &LJ.alpha, &junk) != 1 || LJ.alpha<0||LJ.alpha>1
-   || sscanf (argv[6], "%u%c",  &LJ.seed,  &junk) != 1)
-  { fprintf (stderr, 
-             "Usage: LJ2D width height N-particles temperature alpha seed\n");
-    exit(-1);
+   || sscanf (argv[6], "%lf%c", &LJ.T,     &junk) != 1 || LJ.T < 0)
+  { usage();
+  }
+
+  if (argc > 7)
+  { int p = 7;
+    if (strcmp (argv[7], "/") != 0)
+    { if (sscanf (argv[7], "%lf%c", &LJ.initial_T, &junk) != 1
+       || LJ.initial_T < 0)
+      { usage();
+      }
+      p = 8;
+    }
+    if (argc > p)
+    { if (strcmp (argv[p], "/") != 0 || argc != p+2
+       || sscanf (argv[p+1], "%u%c", &LJ.seed, &junk) != 1)
+      { usage();
+      }
+    }
+  }
+
+  if (LJ.initial_T < 0) LJ.initial_T = LJ.T;
+
+  if (1)
+  { fprintf (stderr,
+      "W %.3f, 1H %.3f, N %d, alpha %.3f, T %.3f, initial_T %.3f, seed %u\n",
+      LJ.W, LJ.H, LJ.N, LJ.alpha, LJ.T, LJ.initial_T, LJ.seed);
   }
 
   /* Allocate and initialize dynamic state. */
@@ -79,8 +118,8 @@ int main (int argc, char **argv)
   for (i = 0; i < I(ds).N; i++)
   { I(ds).qx[i] = unif(&I(ds).seed) * I(ds).W;
     I(ds).qy[i] = unif(&I(ds).seed) * I(ds).H;
-    I(ds).px[i] = norm(&I(ds).seed) * sqrt(I(ds).T);
-    I(ds).py[i] = norm(&I(ds).seed) * sqrt(I(ds).T);
+    I(ds).px[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
+    I(ds).py[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
   }
 
   /* Allocate window state and initialize application-specified fields. */
