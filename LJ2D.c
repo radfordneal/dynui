@@ -10,16 +10,38 @@
 struct LJ_state
 { double W, H;		/* Width and height of area */
   int N;		/* Number of particles */
-  double initial_T;	/* Initial temperature */
   double T;		/* Equilibrium temperature */
+  double initial_T;	/* Initial temperature */
   double alpha;		/* Temperature refresh constant, 1 = no refresh */
+  unsigned seed;	/* State of random number generator */
+  unsigned start_seed;	/* Seed for random generator at start of run */
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
   double *gx, *gy;	/* Gradients of energy w.r.t. position */
-  unsigned seed;	/* State of random number generator */
 };
 
 #define I(ds) (*(struct LJ_state *)((ds)->i))
+
+
+/* FILE FOR READING OR SAVING. */
+
+static char *save_file;
+
+
+/* ALLOCATE MEMORY FOR STATE. */
+
+void alloc (struct LJ_state *I)
+{
+  if ((I->qx = calloc (I->N, sizeof (double))) == NULL
+   || (I->qy = calloc (I->N, sizeof (double))) == NULL
+   || (I->px = calloc (I->N, sizeof (double))) == NULL
+   || (I->py = calloc (I->N, sizeof (double))) == NULL
+   || (I->gx = calloc (I->N, sizeof (double))) == NULL
+   || (I->gy = calloc (I->N, sizeof (double))) == NULL)
+  { fprintf (stderr, "Can't allocate enough memory\n");
+    exit (1);
+  }
+}
 
 
 /* GENERATE UNIFORM RANDOM NUMBER IN (0,1). Uses and updates seed pointed to. */
@@ -43,7 +65,9 @@ double norm (unsigned *seed)
 
 void usage (void)
 { fprintf (stderr, 
-   "Usage: LJ2D width height N-particles / alpha temp [ initial-temp ] [ / seed ]\n");
+   "Usage: LJ2D [ save-file ] W H N / alpha T [ initial-T ] [ / seed ]\n");
+  fprintf (stderr, 
+   "   or: LJ2D save-file\n");
   exit(-1);
 }
 
@@ -53,50 +77,103 @@ void usage (void)
 int main (int argc, char **argv)
 {
   struct LJ_state LJ;
+  int from_file;
   char junk;
-  int i;
+  int i, p;
 
-  /* Parse program arguments. */
+  /* Parse program arguments, and perhaps read saved file. */
 
-  if (argc < 7)
+  if (argc < 2)
   { usage();
   }
 
-  LJ.initial_T = -1;
-  LJ.seed = 1;
-
-  if (sscanf (argv[1], "%lf%c", &LJ.W,     &junk) != 1 || LJ.W <= 0
-   || sscanf (argv[2], "%lf%c", &LJ.H,     &junk) != 1 || LJ.H <= 0
-   || sscanf (argv[3], "%d%c",  &LJ.N,     &junk) != 1 || LJ.N <= 0
-   || strcmp (argv[4], "/") != 0
-   || sscanf (argv[5], "%lf%c", &LJ.alpha, &junk) != 1 || LJ.alpha<0||LJ.alpha>1
-   || sscanf (argv[6], "%lf%c", &LJ.T,     &junk) != 1 || LJ.T < 0)
-  { usage();
+  if (sscanf (argv[1], "%lf%c", &LJ.W, &junk) != 1 || LJ.W <= 0)  /* file arg */
+  { save_file = argv[1];
+    p = 2;
+  }
+  else
+  { save_file = "LJsave";
+    p = 1;
   }
 
-  if (argc > 7)
-  { int p = 7;
-    if (strcmp (argv[7], "/") != 0)
-    { if (sscanf (argv[7], "%lf%c", &LJ.initial_T, &junk) != 1
-       || LJ.initial_T < 0)
-      { usage();
-      }
-      p = 8;
+  if (argc == p)  /* Read saved arguments and state from file */
+  { FILE *f;
+    from_file = 1;
+    f = fopen (save_file, "rb");
+    if (f == NULL)
+    { fprintf (stderr, "Can't read file\n");
+      exit(-2);
     }
-    if (argc > p)
-    { if (strcmp (argv[p], "/") != 0 || argc != p+2
-       || sscanf (argv[p+1], "%u%c", &LJ.seed, &junk) != 1)
-      { usage();
-      }
+    if (fread (&LJ.W, sizeof(LJ.W), 1, f) != 1
+     || fread (&LJ.H, sizeof(LJ.H), 1, f) != 1
+     || fread (&LJ.N, sizeof(LJ.N), 1, f) != 1
+     || fread (&LJ.T, sizeof(LJ.T), 1, f) != 1
+     || fread (&LJ.initial_T, sizeof(LJ.initial_T), 1, f) != 1
+     || fread (&LJ.alpha, sizeof(LJ.alpha), 1, f) != 1
+     || fread (&LJ.seed, sizeof(LJ.seed), 1, f) != 1
+     || fread (&LJ.start_seed, sizeof(LJ.start_seed), 1, f) != 1)
+    { fprintf (stderr, "Error reading file header\n");
+      exit(-2);
     }
+    alloc (&LJ);
+    if (fread (LJ.qx, sizeof(*LJ.qx), LJ.N, f) != LJ.N
+     || fread (LJ.qy, sizeof(*LJ.qy), LJ.N, f) != LJ.N
+     || fread (LJ.px, sizeof(*LJ.px), LJ.N, f) != LJ.N
+     || fread (LJ.py, sizeof(*LJ.py), LJ.N, f) != LJ.N)
+    { fprintf (stderr, "Error reading file data\n");
+      exit(-2);
+    }
+    fclose(f);
   }
 
-  if (LJ.initial_T < 0) LJ.initial_T = LJ.T;
+  else  /* Parse arguments on command line */
+  {
+    from_file = 0;
+
+    LJ.initial_T = -1;
+    LJ.seed = 1;
+
+    if (argc < p+6)
+    { usage();
+    }
+
+    if (sscanf (argv[p+0], "%lf%c", &LJ.W, &junk) != 1 || LJ.W <= 0
+     || sscanf (argv[p+1], "%lf%c", &LJ.H, &junk) != 1 || LJ.H <= 0
+     || sscanf (argv[p+2], "%d%c",  &LJ.N, &junk) != 1 || LJ.N <= 0
+     || strcmp (argv[p+3], "/") != 0
+     || sscanf (argv[p+4], "%lf%c", &LJ.alpha, &junk) != 1 
+         || LJ.alpha < 0 || LJ.alpha > 1
+     || sscanf (argv[p+5], "%lf%c", &LJ.T, &junk) != 1 || LJ.T < 0)
+    { usage();
+    }
+
+    if (argc > p+6)
+    { if (strcmp (argv[p+6], "/") != 0)
+      { if (sscanf (argv[p+6], "%lf%c", &LJ.initial_T, &junk) != 1
+         || LJ.initial_T < 0)
+        { usage();
+        }
+        p += 1;
+      }
+      if (argc > p+6)
+      { if (strcmp (argv[p+6], "/") != 0 || argc != p+8
+         || sscanf (argv[p+7], "%u%c", &LJ.seed, &junk) != 1)
+        { usage();
+        }
+      }
+    }
+
+    LJ.start_seed = LJ.seed;
+    if (LJ.initial_T < 0) 
+    { LJ.initial_T = LJ.T;
+    }
+  }
 
   if (1)
   { fprintf (stderr,
-      "W %.3f, 1H %.3f, N %d, alpha %.3f, T %.3f, initial_T %.3f, seed %u\n",
-      LJ.W, LJ.H, LJ.N, LJ.alpha, LJ.T, LJ.initial_T, LJ.seed);
+     "file %s, W %.1f, H %.1f, N %d, alpha %.3f, T %.2f, initial_T %.2f\n",
+      save_file, LJ.W, LJ.H, LJ.N, LJ.alpha, LJ.T, LJ.initial_T);
+    fprintf (stderr, "seed %u, start_seed %u\n", LJ.seed, LJ.start_seed);
   }
 
   /* Allocate and initialize dynamic state. */
@@ -105,21 +182,16 @@ int main (int argc, char **argv)
   ds->i = (void *) &LJ;
   ds->sim_time = 0;
 
-  if ((I(ds).qx = calloc (I(ds).N, sizeof (double))) == NULL
-   || (I(ds).qy = calloc (I(ds).N, sizeof (double))) == NULL
-   || (I(ds).px = calloc (I(ds).N, sizeof (double))) == NULL
-   || (I(ds).py = calloc (I(ds).N, sizeof (double))) == NULL
-   || (I(ds).gx = calloc (I(ds).N, sizeof (double))) == NULL
-   || (I(ds).gy = calloc (I(ds).N, sizeof (double))) == NULL)
-  { fprintf (stderr, "Can't allocate enough memory\n");
-    exit (1);
-  }
+  if (!from_file)
+  {
+    alloc (&I(ds));
 
-  for (i = 0; i < I(ds).N; i++)
-  { I(ds).qx[i] = unif(&I(ds).seed) * I(ds).W;
-    I(ds).qy[i] = unif(&I(ds).seed) * I(ds).H;
-    I(ds).px[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
-    I(ds).py[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
+    for (i = 0; i < I(ds).N; i++)
+    { I(ds).qx[i] = unif(&I(ds).seed) * I(ds).W;
+      I(ds).qy[i] = unif(&I(ds).seed) * I(ds).H;
+      I(ds).px[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
+      I(ds).py[i] = norm(&I(ds).seed) * sqrt(I(ds).initial_T);
+    }
   }
 
   /* Allocate window state and initialize application-specified fields. */
@@ -327,7 +399,27 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 /* SAVE STATE.  Returns 1 if succesful, 0 if not. */
 
 int dynui_save (struct dynamic_state *ds)
-{ return 0;
+{ FILE *f;
+  f = fopen (save_file, "wb");
+  if (f == NULL)
+  { return 0;
+  }
+  if (fwrite (&I(ds).W, sizeof(I(ds).W), 1, f) != 1
+   || fwrite (&I(ds).H, sizeof(I(ds).H), 1, f) != 1
+   || fwrite (&I(ds).N, sizeof(I(ds).N), 1, f) != 1
+   || fwrite (&I(ds).T, sizeof(I(ds).T), 1, f) != 1
+   || fwrite (&I(ds).initial_T, sizeof(I(ds).initial_T), 1, f) != 1
+   || fwrite (&I(ds).alpha, sizeof(I(ds).alpha), 1, f) != 1
+   || fwrite (&I(ds).seed, sizeof(I(ds).seed), 1, f) != 1
+   || fwrite (&I(ds).start_seed, sizeof(I(ds).start_seed), 1, f) != 1
+   || fwrite (I(ds).qx, sizeof(*I(ds).qx), I(ds).N, f) != I(ds).N
+   || fwrite (I(ds).qy, sizeof(*I(ds).qy), I(ds).N, f) != I(ds).N
+   || fwrite (I(ds).px, sizeof(*I(ds).px), I(ds).N, f) != I(ds).N
+   || fwrite (I(ds).py, sizeof(*I(ds).py), I(ds).N, f) != I(ds).N)
+  { return 0;
+  }
+  fclose(f);
+  return 1;
 }
 
 
