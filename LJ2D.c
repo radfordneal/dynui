@@ -22,10 +22,10 @@ struct LJ_state
 #define I(ds) (*(struct LJ_state *)((ds)->i))
 
 
-/* GENERATE UNIFORM RANDOM NUMBER IN [0,1). Uses and updates seed pointed to. */
+/* GENERATE UNIFORM RANDOM NUMBER IN (0,1). Uses and updates seed pointed to. */
 
 double unif (unsigned *seed)
-{ return rand_r(seed) / (RAND_MAX+1.0);
+{ return (rand_r(seed)+1.0) / (RAND_MAX+2.0);
 }
 
 
