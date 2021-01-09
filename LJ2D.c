@@ -311,14 +311,14 @@ static void compute_gradient (struct dynamic_state *ds)
 
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
-static double delta_t = 0.1;
-static int steps = 30;
+static double delta_t = 0.05;
+static int steps = 10;
 
 void dynui_advance (struct dynamic_state *ds)
 {
   double eta = delta_t / steps;
   double half_eta = eta/2;
-  double alpha = I(ds).alpha;
+  double alpha = pow (I(ds).alpha, delta_t*steps);
   double *qx = I(ds).qx;
   double *qy = I(ds).qy;
   double *px = I(ds).px;
@@ -367,11 +367,12 @@ void dynui_advance (struct dynamic_state *ds)
   }
 
   if (alpha < 1)
-  { double s = sqrt (I(ds).T * (1-alpha*alpha));
+  { double a = pow (alpha, delta_t*steps);
+    double s = sqrt (I(ds).T * (1-a*a));
     unsigned *seed = &I(ds).seed;
     for (i = 0; i < N; i++) 
-    { px[i] = alpha * px[i] + s * norm(seed);
-      py[i] = alpha * py[i] + s * norm(seed);
+    { px[i] = a * px[i] + s * norm(seed);
+      py[i] = a * py[i] + s * norm(seed);
     }
   }
 
