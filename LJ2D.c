@@ -72,6 +72,9 @@ void usage (void)
 }
 
 
+void set_info (struct dynamic_state *ds);
+
+
 /* MAIN PROGRAM. */
 
 int main (int argc, char **argv)
@@ -208,6 +211,10 @@ int main (int argc, char **argv)
     }
   }
 
+  /* Set initial information string. */
+
+  set_info (ds);
+
   /* Run non-interactively if target time specified. */
 
   if (target_time >= 0)
@@ -273,6 +280,45 @@ static double pair_energy (double d2)
 }
 
 
+/* COMPUTE POTENTIAL ENERGY. */
+
+static double compute_potential_energy (struct dynamic_state *ds)
+{ 
+  int N = I(ds).N;
+  double U;
+  double dx, dy, d2;
+  int i, j;
+
+  U = 0;
+  for (i = 1; i < N; i++)
+  { for (j = 0; j < i; j++)
+    { d2 = squared_distance (ds, i, j, &dx, &dy);
+      U += pair_energy(d2);
+    }
+  }
+
+  return U;
+}
+
+
+/* COMPUTE KINETIC ENERGY. */
+
+static double compute_kinetic_energy (struct dynamic_state *ds)
+{
+  int N = I(ds).N;
+  double K;
+  int i;
+
+  K = 0;
+  for (i = 1; i < N; i++)
+  { K += I(ds).px[i] * I(ds).px[i];
+    K += I(ds).py[i] * I(ds).py[i];
+  }
+
+  return K/2;
+}
+
+
 /* COMPUTE DERIVATIVE OF PAIR ENERGY W.R.T. SQUARED DISTANCE. */
 
 static double pair_energy_deriv (double d2)
@@ -282,7 +328,7 @@ static double pair_energy_deriv (double d2)
 }
 
 
-/* COMPUTE GRADIENT OF ENERGY W.R.T. MOLECULE POSITIONS. */
+/* COMPUTE GRADIENT OF POTENTIAL ENERGY W.R.T. MOLECULE POSITIONS. */
 
 static void compute_gradient (struct dynamic_state *ds)
 { 
@@ -377,6 +423,7 @@ void dynui_advance (struct dynamic_state *ds)
   }
 
   ds->sim_time += delta_t;
+  set_info (ds);
 }
 
 
@@ -462,3 +509,17 @@ int dynui_save (struct dynamic_state *ds)
 void dynui_terminate()
 { exit(0);
 }
+
+
+/* SET INFORMATION STRING.  Shows potential and kinetic energy. */
+
+void set_info (struct dynamic_state *ds)
+{
+  double U = compute_potential_energy(ds);
+  double K = compute_kinetic_energy(ds);
+  static char s[100];
+
+  sprintf (s, "U=%.1f K=%.1f", U, K);
+  ds->sim_info = s;
+}
+
