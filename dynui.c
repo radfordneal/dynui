@@ -258,7 +258,7 @@ static void create_controls (struct window_state *ws)
 
   /* Speed controls. */
 
-  x = 30;
+  x = 25;
   y = ws->height - c_height + 6;
   h = c_height - 12;
 
@@ -275,7 +275,7 @@ static void create_controls (struct window_state *ws)
   /* Zoom controls. */
 
   sfVector2f s = { h, h };
-  x = ws->width/2 - (h+3)*N_SCALES/2;
+  x = 35 + (h+3)*N_SPEEDS;
   y = ws->height - c_height + 6;
   h = c_height - 12;
 
@@ -292,7 +292,7 @@ static void create_controls (struct window_state *ws)
   /* Text of simulation time. */
 
   ws->sim_time_display = sfText_create();
-  sfVector2f t = { ws->width-5.2*(c_height-4)-3*c_height, 
+  sfVector2f t = { ws->width-5.2*(c_height-4)-2.7*c_height, 
                    ws->height-c_height-1 }; 
   sfText_setPosition (ws->sim_time_display, t);
   sfText_setFont (ws->sim_time_display, ws->font);
@@ -302,7 +302,7 @@ static void create_controls (struct window_state *ws)
   /* Text of simulation information. */
 
   ws->sim_info_display = sfText_create();
-  sfVector2f ti = { 40 + N_SPEEDS*(c_height-12+3),
+  sfVector2f ti = { 45 + (h+3)*(N_SPEEDS+N_SCALES),
                     ws->height-c_height-1 }; 
   sfText_setPosition (ws->sim_info_display, ti);
   sfText_setFont (ws->sim_info_display, ws->font);
@@ -311,7 +311,7 @@ static void create_controls (struct window_state *ws)
 
   /* Save button. */
 
-  x = 0.65* ws->width;
+  x = ws->width - 2.2*c_height;
   y = ws->height - c_height + 3;
   h = c_height - 7;
 
