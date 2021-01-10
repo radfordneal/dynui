@@ -22,6 +22,8 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y);
 
 static void set_start_time (struct dynamic_state *ds, struct window_state *ws);
+static void append_vertex (sfVertexArray *a, int x, int y, sfColor c);
+
 
 void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 {
@@ -238,35 +240,20 @@ static void create_controls (struct window_state *ws)
   w = c_height - 10;
 
   ws->run_button = sfVertexArray_create();
-  v.position.x = x;
-  v.position.y = y;
-  sfVertexArray_append (ws->run_button, v);
-  v.position.y = y+h;
-  sfVertexArray_append (ws->run_button, v);
-  v.position.x = x+h/2;
-  v.position.y = y+h/2;
-  sfVertexArray_append (ws->run_button, v);
+  append_vertex (ws->run_button, x,     y,     sfWhite);
+  append_vertex (ws->run_button, x,     y+h,   sfWhite);
+  append_vertex (ws->run_button, x+h/2, y+h/2, sfWhite);
   sfVertexArray_setPrimitiveType (ws->run_button, sfTriangles);
 
   ws->pause_button = sfVertexArray_create();
-  v.position.x = x;
-  v.position.y = y;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.y = y+h;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.x = x+w/3;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.y = y;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.x = x+2*w/3;
-  v.position.y = y;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.y = y+h;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.x = x+w;
-  sfVertexArray_append (ws->pause_button, v);
-  v.position.y = y;
-  sfVertexArray_append (ws->pause_button, v);
+  append_vertex (ws->pause_button, x,       y,   sfWhite);
+  append_vertex (ws->pause_button, x,       y+h, sfWhite);
+  append_vertex (ws->pause_button, x+w/3,   y+h, sfWhite);
+  append_vertex (ws->pause_button, x+w/3,   y,   sfWhite);
+  append_vertex (ws->pause_button, x+2*w/3, y,   sfWhite);
+  append_vertex (ws->pause_button, x+2*w/3, y+h, sfWhite);
+  append_vertex (ws->pause_button, x+w,     y+h, sfWhite);
+  append_vertex (ws->pause_button, x+w,     y,   sfWhite);
   sfVertexArray_setPrimitiveType (ws->pause_button, sfQuads);
 
   /* Speed controls. */
@@ -329,23 +316,12 @@ static void create_controls (struct window_state *ws)
   h = c_height - 7;
 
   ws->save_button = sfVertexArray_create();
-    
-  v.position.x = x+5;
-  v.position.y = y;
-  sfVertexArray_append (ws->save_button, v);
-  v.position.y = y+h;
-  sfVertexArray_append (ws->save_button, v);
-  sfVertexArray_append (ws->save_button, v);
-  v.position.x = x;
-  v.position.y = y+h-5;
-  sfVertexArray_append (ws->save_button, v);
-  v.position.x = x+5;
-  v.position.y = y+h;
-  sfVertexArray_append (ws->save_button, v);
-  v.position.x = x+10;
-  v.position.y = y+h-5;
-  sfVertexArray_append (ws->save_button, v);
-
+  append_vertex (ws->save_button, x+5,  y,     sfWhite);
+  append_vertex (ws->save_button, x+5,  y+h,   sfWhite);
+  append_vertex (ws->save_button, x+5,  y+h,   sfWhite);
+  append_vertex (ws->save_button, x,    y+h-5, sfWhite);
+  append_vertex (ws->save_button, x+5,  y+h,   sfWhite);
+  append_vertex (ws->save_button, x+10, y+h-5, sfWhite);
   sfVertexArray_setPrimitiveType (ws->save_button, sfLines);
 
   /* Full screen enter/exit button. */
@@ -357,44 +333,22 @@ static void create_controls (struct window_state *ws)
   ws->full_button = sfVertexArray_create();
     
   if (ws->full_screen)
-  { v.position.x = x;
-    v.position.y = y;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h;
-    v.position.y = y+h;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x;
-    v.position.y = y+h;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h;
-    v.position.y = y;
-    sfVertexArray_append (ws->full_button, v);
+  { append_vertex (ws->full_button, x,   y,   sfWhite);
+    append_vertex (ws->full_button, x+h, y+h, sfWhite);
+    append_vertex (ws->full_button, x,   y+h, sfWhite);
+    append_vertex (ws->full_button, x+h, y,   sfWhite);
   }
   else
-  { v.position.x = x;
-    v.position.y = y+h;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.y = y+h-h/2;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x;
-    v.position.y = y+h;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h/2;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x;
-    v.position.y = y+h;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h;
-    v.position.y = y;
-    sfVertexArray_append (ws->full_button, v);
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h-h/2;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.x = x+h;
-    v.position.y = y;
-    sfVertexArray_append (ws->full_button, v);
-    v.position.y = y+h/2;
-    sfVertexArray_append (ws->full_button, v);
+  { append_vertex (ws->full_button, x,       y+h,     sfWhite);
+    append_vertex (ws->full_button, x,       y+h-h/2, sfWhite);
+    append_vertex (ws->full_button, x,       y+h,     sfWhite);
+    append_vertex (ws->full_button, x+h/2,   y+h,     sfWhite);
+    append_vertex (ws->full_button, x,       y+h,     sfWhite);
+    append_vertex (ws->full_button, x+h,     y,       sfWhite);
+    append_vertex (ws->full_button, x+h,     y,       sfWhite);
+    append_vertex (ws->full_button, x+h-h/2, y,       sfWhite);
+    append_vertex (ws->full_button, x+h,     y,       sfWhite);
+    append_vertex (ws->full_button, x+h,     y+h/2,   sfWhite);
   }
   sfVertexArray_setPrimitiveType (ws->full_button, sfLines);
 }
@@ -603,6 +557,18 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
       return;
     }
   }
+}
+
+
+/* APPEND VERTEX TO VERTEX ARRAY. */
+
+static void append_vertex (sfVertexArray *a, int x, int y, sfColor c)
+{ sfVertex v;
+  v.texCoords = zero_vector_f;
+  v.color = c;
+  v.position.x = x;
+  v.position.y = y;
+  sfVertexArray_append (a, v);
 }
 
 
