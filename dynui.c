@@ -167,6 +167,7 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
       char s[12];
       sprintf (s, "%10.1f", ds->sim_time);
       sfText_setString (ws->sim_time_display, s);
+      sfText_setString (ws->sim_info_display, ds->sim_info);
     }
           
     /* Redraw the window. */
@@ -311,6 +312,16 @@ static void create_controls (struct window_state *ws)
   sfText_setCharacterSize (ws->sim_time_display, c_height-4);
   sfText_setString (ws->sim_time_display, "");
 
+  /* Text of simulation information. */
+
+  ws->sim_info_display = sfText_create();
+  sfVector2f ti = { 40 + N_SPEEDS*(c_height-12+3),
+                    ws->height-c_height-1 }; 
+  sfText_setPosition (ws->sim_info_display, ti);
+  sfText_setFont (ws->sim_info_display, ws->font);
+  sfText_setCharacterSize (ws->sim_info_display, c_height-4);
+  sfText_setString (ws->sim_info_display, "");
+
   /* Save button. */
 
   x = 0.65* ws->width;
@@ -416,6 +427,7 @@ static void draw_controls (struct window_state *ws)
   sfRenderWindow_drawVertexArray (ws->window, ws->save_button, NULL);
 
   sfRenderWindow_drawText (ws->window, ws->sim_time_display, NULL);
+  sfRenderWindow_drawText (ws->window, ws->sim_info_display, NULL);
 
   sfRenderWindow_drawVertexArray (ws->window, ws->full_button, NULL);
 }

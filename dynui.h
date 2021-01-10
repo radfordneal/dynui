@@ -58,6 +58,7 @@ struct window_state
   sfVertexArray *full_button;	/* Button to enter or exit full screen mode */
 
   sfText *sim_time_display;	/* Textual display of simulation time */
+  sfText *sim_info_display;	/* Text giving information on simulation */
 
   sfClock *clock;		/* Clock used to control speed */
   double start_real_time;	/* Real elapsed time from start of run */
@@ -74,6 +75,7 @@ struct window_state
 struct dynamic_state
 { 
   double sim_time;		/* Current simulation time */
+  char *sim_info;		/* String with information to display */
 
   void *i;			/* Additional information */
 };

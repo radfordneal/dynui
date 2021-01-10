@@ -87,7 +87,7 @@ int main (int argc, char **argv)
   struct dynamic_state ds0, *ds = &ds0;
   ds->i = (void *) &LJ;
   ds->sim_time = 0;
-
+  ds->sim_info = "";
 
   /* Parse program arguments, and perhaps read saved file. */
 
