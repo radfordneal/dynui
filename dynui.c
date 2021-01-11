@@ -105,11 +105,16 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         { ws->exit = 1;
         }
       }
-      else if (event.type == sfEvtMouseButtonPressed)
+      else if (event.type == sfEvtMouseButtonPressed &&
+               event.mouseButton.button == 0)
       { mouse_press (ws, event.mouseButton.x, event.mouseButton.y);
       }
-      else if (event.type == sfEvtMouseButtonReleased)
+      else if (event.type == sfEvtMouseButtonReleased &&
+               event.mouseButton.button == 0)
       { mouse_release (ds, ws, event.mouseButton.x, event.mouseButton.y);
+      }
+      else
+      { dynui_event (ds, ws, event);
       }
     }
 

@@ -91,6 +91,14 @@ int dynui_save (struct dynamic_state *ds)
 }
 
 
+/* HANDLE EVENT. */
+
+void dynui_event (struct dynamic_state *ds, struct window_state *ws,
+                  sfEvent event)
+{
+}
+
+
 /* TERMINATE PROGRAM. */
 
 void dynui_terminate()

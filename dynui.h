@@ -89,6 +89,8 @@ extern void dynui_window (struct dynamic_state *ds, struct window_state *ws);
 /* PROCEDURES PROVIDED BY THE APPLICATION. */
 
 extern void dynui_advance (struct dynamic_state *ds);
-extern void dynui_view (struct dynamic_state *ds, struct window_state *window);
+extern void dynui_event (struct dynamic_state *ds, struct window_state *ws,
+                         sfEvent event);
+extern void dynui_view (struct dynamic_state *ds, struct window_state *ws);
 extern int dynui_save (struct dynamic_state *ds);
 extern void dynui_terminate (void);

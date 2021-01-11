@@ -15,6 +15,7 @@ struct LJ_state
   double alpha;		/* Temperature refresh constant, 1 = no refresh */
   unsigned seed;	/* State of random number generator */
   unsigned start_seed;	/* Seed for random generator at start of run */
+  int highlight;	/* Index of molecule to highlight, or -1 */
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
   double *gx, *gy;	/* Gradients of energy w.r.t. position */
@@ -132,7 +133,8 @@ int main (int argc, char **argv)
      || fread (&LJ.initial_T, sizeof(LJ.initial_T), 1, f) != 1
      || fread (&LJ.alpha, sizeof(LJ.alpha), 1, f) != 1
      || fread (&LJ.seed, sizeof(LJ.seed), 1, f) != 1
-     || fread (&LJ.start_seed, sizeof(LJ.start_seed), 1, f) != 1)
+     || fread (&LJ.start_seed, sizeof(LJ.start_seed), 1, f) != 1
+     || fread (&LJ.highlight, sizeof(LJ.highlight), 1, f) != 1)
     { fprintf (stderr, "Error reading file header\n");
       exit(-2);
     }
@@ -202,7 +204,7 @@ int main (int argc, char **argv)
   if (!from_file)
   {
     alloc (&I(ds));
-
+    I(ds).highlight = -1;
     for (i = 0; i < I(ds).N; i++)
     { I(ds).qx[i] = unif(&I(ds).seed) * I(ds).W;
       I(ds).qy[i] = unif(&I(ds).seed) * I(ds).H;
@@ -389,10 +391,10 @@ void dynui_advance (struct dynamic_state *ds)
     for (i = 0; i < N; i++) 
     { qx[i] += eta * px[i];
       while (qx[i] < 0) qx[i] += W;
-      while (qx[i] > W) qx[i] -= W;
+      while (qx[i] >= W) qx[i] -= W;
       qy[i] += eta * py[i];
       while (qy[i] < 0) qy[i] += H;
-      while (qy[i] > H) qy[i] -= H;
+      while (qy[i] >= H) qy[i] -= H;
     }
 
     compute_gradient(ds);
@@ -429,7 +431,7 @@ void dynui_advance (struct dynamic_state *ds)
 
 /* DRAW VIEW OF SIMULATION. */
 
-static int dot_radius = 2;
+static double dot_radius = 2;
 
 void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 { 
@@ -453,6 +455,10 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 
   for (i = 0; i < N; i++)
   {
+    if (i == I(ds).highlight)
+    { sfCircleShape_setFillColor (dot, sfRed);
+    }
+
     sfVector2f pos = { ws->scale * (ws->offset.x + qx[i] - W/2) + ox,
                        ws->scale * (ws->offset.y + qy[i] - H/2) + oy };
 
@@ -467,6 +473,10 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
       { sfCircleShape_setPosition (dot, p2);
         sfRenderWindow_drawCircleShape (ws->window, dot, NULL);
       }
+    }
+
+    if (i == I(ds).highlight)
+    { sfCircleShape_setFillColor (dot, sfWhite);
     }
   }
 
@@ -491,6 +501,7 @@ int dynui_save (struct dynamic_state *ds)
    || fwrite (&I(ds).alpha, sizeof(I(ds).alpha), 1, f) != 1
    || fwrite (&I(ds).seed, sizeof(I(ds).seed), 1, f) != 1
    || fwrite (&I(ds).start_seed, sizeof(I(ds).start_seed), 1, f) != 1
+   || fwrite (&I(ds).highlight, sizeof(I(ds).highlight), 1, f) != 1
    || fwrite (I(ds).qx, sizeof(*I(ds).qx), I(ds).N, f) != I(ds).N
    || fwrite (I(ds).qy, sizeof(*I(ds).qy), I(ds).N, f) != I(ds).N
    || fwrite (I(ds).px, sizeof(*I(ds).px), I(ds).N, f) != I(ds).N
@@ -501,6 +512,49 @@ int dynui_save (struct dynamic_state *ds)
   { return 0;
   }
   return 1;
+}
+
+
+/* HANDLE EVENT. */
+
+void dynui_event (struct dynamic_state *ds, struct window_state *ws,
+                  sfEvent event)
+{
+  if (event.type == sfEvtMouseButtonPressed && event.mouseButton.button == 1)
+  { 
+    double *qx = I(ds).qx;
+    double *qy = I(ds).qy;
+    double W = I(ds).W;
+    double H = I(ds).H;
+    int N = I(ds).N;
+    double x, y;
+    int i;
+
+    x = (event.mouseButton.x - ws->width/2) / ws->scale + W/2 - ws->offset.x;
+    while (x < 0) x += W;
+    while (x >= W) x -= W;
+    y = (event.mouseButton.y - ws->height/2) / ws->scale + H/2 - ws->offset.y;
+    while (y < 0) y += H;
+    while (y >= I(ds).H) y -= H;
+
+    for (i = N-1; i >= 0; i--)
+    { double dx, dy;
+      dx = qx[i]-x;
+      while (dx < -W/2) dx += W;
+      while (dx >= W/2) dx -= W;
+      if (dx > dot_radius || dx < -dot_radius)
+      { continue;
+      }
+      dy = qy[i]-y;
+      while (dy < -H/2) dy += H;
+      while (dy >= H/2) dy -= H;
+      if (dx*dx + dy*dy <= dot_radius*dot_radius)
+      { break;
+      }
+    }
+
+    I(ds).highlight = i;  /* will be -1 if not found */
+  }
 }
 
 
