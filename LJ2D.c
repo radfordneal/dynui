@@ -15,7 +15,8 @@ struct LJ_state
   double alpha;		/* Temperature refresh constant, 1 = no refresh */
   unsigned seed;	/* State of random number generator */
   unsigned start_seed;	/* Seed for random generator at start of run */
-  int highlight;	/* Index of molecule to highlight, or -1 */
+  int highlight_red,	/* Indexes of molecules to highlight, or -1 */
+      highlight_green;
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
   double *gx, *gy;	/* Gradients of energy w.r.t. position */
@@ -134,7 +135,8 @@ int main (int argc, char **argv)
      || fread (&LJ.alpha, sizeof(LJ.alpha), 1, f) != 1
      || fread (&LJ.seed, sizeof(LJ.seed), 1, f) != 1
      || fread (&LJ.start_seed, sizeof(LJ.start_seed), 1, f) != 1
-     || fread (&LJ.highlight, sizeof(LJ.highlight), 1, f) != 1)
+     || fread (&LJ.highlight_red, sizeof(LJ.highlight_red), 1, f) != 1
+     || fread (&LJ.highlight_green, sizeof(LJ.highlight_green), 1, f) != 1)
     { fprintf (stderr, "Error reading file header\n");
       exit(-2);
     }
@@ -204,7 +206,7 @@ int main (int argc, char **argv)
   if (!from_file)
   {
     alloc (&I(ds));
-    I(ds).highlight = -1;
+    I(ds).highlight_red = I(ds).highlight_green = -1;
     for (i = 0; i < I(ds).N; i++)
     { I(ds).qx[i] = unif(&I(ds).seed) * I(ds).W;
       I(ds).qy[i] = unif(&I(ds).seed) * I(ds).H;
@@ -455,8 +457,11 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 
   for (i = 0; i < N; i++)
   {
-    if (i == I(ds).highlight)
+    if (i == I(ds).highlight_red)
     { sfCircleShape_setFillColor (dot, sfRed);
+    }
+    else if (i == I(ds).highlight_green)
+    { sfCircleShape_setFillColor (dot, sfGreen);
     }
 
     sfVector2f pos = { ws->scale * (ws->offset.x + qx[i] - W/2) + ox,
@@ -475,7 +480,7 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
       }
     }
 
-    if (i == I(ds).highlight)
+    if (i == I(ds).highlight_red || i == I(ds).highlight_green)
     { sfCircleShape_setFillColor (dot, sfWhite);
     }
   }
@@ -501,7 +506,8 @@ int dynui_save (struct dynamic_state *ds)
    || fwrite (&I(ds).alpha, sizeof(I(ds).alpha), 1, f) != 1
    || fwrite (&I(ds).seed, sizeof(I(ds).seed), 1, f) != 1
    || fwrite (&I(ds).start_seed, sizeof(I(ds).start_seed), 1, f) != 1
-   || fwrite (&I(ds).highlight, sizeof(I(ds).highlight), 1, f) != 1
+   || fwrite (&I(ds).highlight_red, sizeof(I(ds).highlight_red), 1, f) != 1
+   || fwrite (&I(ds).highlight_green, sizeof(I(ds).highlight_green), 1, f) != 1
    || fwrite (I(ds).qx, sizeof(*I(ds).qx), I(ds).N, f) != I(ds).N
    || fwrite (I(ds).qy, sizeof(*I(ds).qy), I(ds).N, f) != I(ds).N
    || fwrite (I(ds).px, sizeof(*I(ds).px), I(ds).N, f) != I(ds).N
@@ -520,7 +526,7 @@ int dynui_save (struct dynamic_state *ds)
 void dynui_event (struct dynamic_state *ds, struct window_state *ws,
                   sfEvent event)
 {
-  if (event.type == sfEvtMouseButtonPressed && event.mouseButton.button == 1)
+  if (event.type == sfEvtMouseButtonPressed)
   { 
     double *qx = I(ds).qx;
     double *qy = I(ds).qy;
@@ -530,12 +536,16 @@ void dynui_event (struct dynamic_state *ds, struct window_state *ws,
     double x, y;
     int i;
 
+    /* Translate mouse press position to molecule coordinates. */
+
     x = (event.mouseButton.x - ws->width/2) / ws->scale + W/2 - ws->offset.x;
     while (x < 0) x += W;
     while (x >= W) x -= W;
     y = (event.mouseButton.y - ws->height/2) / ws->scale + H/2 - ws->offset.y;
     while (y < 0) y += H;
     while (y >= I(ds).H) y -= H;
+
+    /* Set i to index of molecule near mouse press, -1 if none. */
 
     for (i = N-1; i >= 0; i--)
     { double dx, dy;
@@ -553,7 +563,14 @@ void dynui_event (struct dynamic_state *ds, struct window_state *ws,
       }
     }
 
-    I(ds).highlight = i;  /* will be -1 if not found */
+    /* Highlight selected molecule (or unhighlight if none). */
+
+    if (event.mouseButton.button == 1)
+    { I(ds).highlight_red = i;
+    }
+    else
+    { I(ds).highlight_green = i;
+    }
   }
 }
 
