@@ -262,13 +262,13 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
   double dx, dy;
 
   dx =  I(ds).qx[i] - I(ds).qx[j];
-  while (dx < 0) dx += I(ds).W;
-  if (dx > I(ds).W/2) dx = I(ds).W - dx;
+  while (dx < -I(ds).W/2) dx += I(ds).W;
+  while (dx >= I(ds).W/2) dx -= I(ds).W;
   *sdx = dx;
 
   dy =  I(ds).qy[i] - I(ds).qy[j];
-  while (dy < 0) dy += I(ds).H;
-  if (dy > I(ds).H/2) dy = I(ds).H - dy;
+  while (dy < -I(ds).H/2) dy += I(ds).H;
+  while (dy >= I(ds).H/2) dy -= I(ds).H;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -297,6 +297,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
     { d2 = squared_distance (ds, i, j, &dx, &dy);
+      if (d2 < 0.95) d2 = 0.95;  /* avoid extremely large values */
       U += pair_energy(d2);
     }
   }
@@ -347,8 +348,8 @@ static void compute_gradient (struct dynamic_state *ds)
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
     { d2 = squared_distance (ds, i, j, &dx, &dy);
-      if (d2 < 1) continue;   /* Avoid extreme gradients */
-      if (d2 > 20) continue;  /* Ignore small forces */
+      if (d2 > 16) continue;  /* Ignore small forces */
+      if (d2 < 0.95) continue;  /* zero gradient when hits limit */
       g = 2 * pair_energy_deriv(d2);
       gx[i] += dx*g;
       gy[i] += dy*g;
@@ -362,7 +363,7 @@ static void compute_gradient (struct dynamic_state *ds)
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
 static double delta_t = 0.05;
-static int steps = 10;
+static int steps = 300;
 
 void dynui_advance (struct dynamic_state *ds)
 {
@@ -433,7 +434,7 @@ void dynui_advance (struct dynamic_state *ds)
 
 /* DRAW VIEW OF SIMULATION. */
 
-static double dot_radius = 2;
+static double dot_radius = 0.8;
 
 void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 { 
@@ -590,7 +591,7 @@ void set_info (struct dynamic_state *ds)
   double K = compute_kinetic_energy(ds);
   static char s[100];
 
-  sprintf (s, "U=%.1f K=%.1f", U, K);
+  sprintf (s, "U %8.1f K %6.1f H %8.1f", U, K, U+K);
   ds->sim_info = s;
 }
 
