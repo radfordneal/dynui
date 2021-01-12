@@ -1,5 +1,5 @@
 /* CIRCLE.C - Test dynamic program that moves dot in a circle.
-   Copyright 2020 by Radford M. Neal
+   Copyright 2021 by Radford M. Neal
  */
 
 #include "dynui.h"

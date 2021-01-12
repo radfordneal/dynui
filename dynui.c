@@ -1,5 +1,5 @@
 /* DYNUI.C - User interface for dynamic simulations.
-   Copyright 2020 by Radford M. Neal
+   Copyright 2021 by Radford M. Neal
  */
 
 #include "dynui.h"

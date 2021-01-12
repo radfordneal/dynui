@@ -1,5 +1,5 @@
 /* DYNUI.H - Header file for interace of user interface to simulation.
-   Copyright 2020 by Radford M. Neal
+   Copyright 2021 by Radford M. Neal
  */
 
 #include <stdlib.h>
