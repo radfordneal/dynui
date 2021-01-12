@@ -418,12 +418,20 @@ void dynui_advance (struct dynamic_state *ds)
   }
 
   if (alpha < 1)
-  { double a = pow (alpha, delta_t*steps);
-    double s = sqrt (I(ds).T * (1-a*a));
-    unsigned *seed = &I(ds).seed;
-    for (i = 0; i < N; i++) 
-    { px[i] = a * px[i] + s * norm(seed);
-      py[i] = a * py[i] + s * norm(seed);
+  { double a = pow (alpha, delta_t);
+    if (I(ds).T == 0)
+    { for (i = 0; i < N; i++) 
+      { px[i] *= a;
+        py[i] *= a;
+      }
+    }
+    else
+    { double s = sqrt (I(ds).T * (1-a*a));
+      unsigned *seed = &I(ds).seed;
+      for (i = 0; i < N; i++) 
+      { px[i] = a * px[i] + s * norm(seed);
+        py[i] = a * py[i] + s * norm(seed);
+      }
     }
   }
 
