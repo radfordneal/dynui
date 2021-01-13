@@ -24,6 +24,8 @@
 
 /* STATE OF A LENNARD-JONES SYSTEM. */
 
+typedef double *dblptr;
+
 struct LJ_state
 { double W, H;		/* Width and height of area */
   int N;		/* Number of particles */
@@ -37,6 +39,8 @@ struct LJ_state
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
   double *gx, *gy;	/* Gradients of energy w.r.t. position */
+  dblptr *sort;		/* Pointers to x coordinates in sorted order */
+  dblptr *tmp;		/* Temporary storage for sort */
 };
 
 #define I(ds) (*(struct LJ_state *)((ds)->i))
@@ -56,7 +60,9 @@ void alloc (struct LJ_state *I)
    || (I->px = calloc (I->N, sizeof (double))) == NULL
    || (I->py = calloc (I->N, sizeof (double))) == NULL
    || (I->gx = calloc (I->N, sizeof (double))) == NULL
-   || (I->gy = calloc (I->N, sizeof (double))) == NULL)
+   || (I->gy = calloc (I->N, sizeof (double))) == NULL
+   || (I->sort = calloc (I->N, sizeof (dblptr))) == NULL
+   || (I->tmp = calloc (I->N, sizeof (dblptr))) == NULL)
   { fprintf (stderr, "Can't allocate enough memory\n");
     exit (1);
   }
@@ -271,6 +277,30 @@ int main (int argc, char **argv)
 }
 
 
+/* SORT MOLECULES BY X COORDINATE. */
+
+#define merge_sort risort
+#define merge_value dblptr
+#define merge_greater(a,b) (*(a) > *(b))
+
+#include "merge-sort.c"
+
+static void x_sort (struct dynamic_state *ds)
+{
+  dblptr *sort = I(ds).sort;
+  dblptr *tmp = I(ds).tmp;
+  double *qx = I(ds).qx;
+  int N = I(ds).N;
+  int ii;
+
+  for (ii = 0; ii < N; ii++)
+  { tmp[ii] = qx+ii;
+  }
+
+  risort (sort, tmp, N);
+}
+
+
 /* COMPUTE SQUARED DISTANCE OF THE NEAREST IMAGES OF A PAIR OF MOLECULES. */
 
 static double squared_distance (struct dynamic_state *ds, int i, int j,
@@ -281,11 +311,12 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
   dx =  I(ds).qx[i] - I(ds).qx[j];
   while (dx < -I(ds).W/2) dx += I(ds).W;
   while (dx >= I(ds).W/2) dx -= I(ds).W;
-  *sdx = dx;
 
   dy =  I(ds).qy[i] - I(ds).qy[j];
   while (dy < -I(ds).H/2) dy += I(ds).H;
   while (dy >= I(ds).H/2) dy -= I(ds).H;
+
+  *sdx = dx;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -315,15 +346,22 @@ static double pair_energy (double d2)
 
 static double compute_potential_energy (struct dynamic_state *ds)
 { 
+  x_sort(ds);
+
+  dblptr *sort = I(ds).sort;
+  double *qx = I(ds).qx;
   int N = I(ds).N;
-  double U;
+
   double dx, dy, d2;
-  int i, j;
+  int ii, jj, i, j;
+  double U;
 
   U = 0;
-  for (i = 1; i < N; i++)
-  { for (j = 0; j < i; j++)
-    { d2 = squared_distance (ds, i, j, &dx, &dy);
+  for (ii = 1; ii < N; ii++)
+  { i = sort[ii] - qx;
+    for (jj = 0; jj < ii; jj++)
+    { j = sort[jj] - qx;
+      d2 = squared_distance (ds, i, j, &dx, &dy);
       U += pair_energy(d2);
     }
   }

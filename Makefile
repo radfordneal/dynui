@@ -1,5 +1,7 @@
 # MAKEFILE FOR DYNUI PROGRAMS.
 
+CFLAGS=-O3
+
 all:	circle LJ2D
 
 dynui.o:	dynui.c dynui.h
