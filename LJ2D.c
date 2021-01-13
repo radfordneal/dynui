@@ -90,9 +90,9 @@ double norm (unsigned *seed)
 
 void usage (void)
 { fprintf (stderr, 
-   "Usage: LJ2D [ @time ] [ save-file ] W H N / alpha T [ initial-T ] [ / seed ]\n");
+   "Usage: LJ2D [ @[time] ] [ save-file ] W H N / alpha T [ initial-T ] [ / seed ]\n");
   fprintf (stderr, 
-   "   or: LJ2D [ @time ] save-file\n");
+   "   or: LJ2D [ @[time] ] save-file\n");
   exit(-1);
 }
 
@@ -106,6 +106,7 @@ int main (int argc, char **argv)
 {
   struct LJ_state LJ;
   double target_time;
+  int show_only;
   int from_file;
   char junk;
   int i, p;
@@ -121,9 +122,14 @@ int main (int argc, char **argv)
 
   p = 1;
 
+  show_only = 0;
   target_time = -1;
   if (argc > 1 && *argv[1] == '@')
-  { if (sscanf (argv[1]+1, "%lf%c", &target_time, &junk) != 1 || target_time<0)
+  { if (strcmp(argv[1],"@") == 0)
+    { show_only = 1;
+    }
+    else if (sscanf (argv[1]+1, "%lf%c", &target_time, &junk) != 1
+          || target_time < 0)
     { usage();
     }
     p += 1;
@@ -241,6 +247,13 @@ int main (int argc, char **argv)
   /* Set initial information string. */
 
   set_info (ds);
+
+  /* Just show info if "@" was first argument. */
+
+  if (show_only)
+  { fprintf (stderr, "%s\n", ds->sim_info);
+    exit(0);
+  }
 
   /* Run non-interactively if target time specified. */
 
