@@ -5,6 +5,23 @@
 #include "dynui.h"
 
 
+/* LIMITS ON POTENTIAL. */
+
+#define LJ_LIM 4.0	/* Limit on distance where potential is non-zero */
+
+#define LJL6 (LJ_LIM*LJ_LIM*LJ_LIM*LJ_LIM*LJ_LIM*LJ_LIM)
+#define LJL12 (LJL6*LJL6)
+
+#define LJ_SHIFT (4 * (1/LJL12 - 1/LJL6)) /* Shift of potential to bring value
+                                             to zero at distance LJ_LIM */
+
+#define LJ_N 0.9	/* Distance where potential reaches maximum */
+
+#define LJ_MAX \
+  (4 * (1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N) \
+         - 1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N)) + LJ_SHIFT)
+
+
 /* STATE OF A LENNARD-JONES SYSTEM. */
 
 struct LJ_state
@@ -278,9 +295,19 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
 /* COMPUTE CONTRIBUTION TO ENERGY FROM A PAIR, GIVEN SQUARED DISTANCE. */
 
 static double pair_energy (double d2)
-{ double t6 = 1/(d2*d2*d2);
+{ 
+  if (d2 >= LJ_LIM*LJ_LIM)
+  { return 0;
+  }
+
+  if (d2 <= LJ_N*LJ_N)
+  { return LJ_MAX;
+  }
+
+  double t6 = 1/(d2*d2*d2);
   double t12 = t6*t6;
-  return 4 * (t12 - t6);
+
+  return 4 * (t12 - t6) + LJ_SHIFT;
 }
 
 
@@ -297,7 +324,6 @@ static double compute_potential_energy (struct dynamic_state *ds)
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
     { d2 = squared_distance (ds, i, j, &dx, &dy);
-      if (d2 < 0.95) d2 = 0.95;  /* avoid extremely large values */
       U += pair_energy(d2);
     }
   }
@@ -327,8 +353,14 @@ static double compute_kinetic_energy (struct dynamic_state *ds)
 /* COMPUTE DERIVATIVE OF PAIR ENERGY W.R.T. SQUARED DISTANCE. */
 
 static double pair_energy_deriv (double d2)
-{ double t6 = 1/(d2*d2*d2);
+{ 
+  if (d2 >= LJ_LIM*LJ_LIM || d2 <= LJ_N*LJ_N)
+  { return 0;
+  }
+
+  double t6 = 1/(d2*d2*d2);
   double t12 = t6*t6;
+
   return (-24*t12 + 12*t6) / d2;
 }
 
@@ -348,9 +380,11 @@ static void compute_gradient (struct dynamic_state *ds)
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
     { d2 = squared_distance (ds, i, j, &dx, &dy);
-      if (d2 > 16) continue;  /* Ignore small forces */
-      if (d2 < 0.95) continue;  /* zero gradient when hits limit */
-      g = 2 * pair_energy_deriv(d2);
+      g = pair_energy_deriv(d2);
+      if (g == 0)
+      { continue;
+      }
+      g *= 2;
       gx[i] += dx*g;
       gy[i] += dy*g;
       gx[j] -= dx*g;
