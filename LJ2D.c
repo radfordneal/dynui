@@ -251,7 +251,7 @@ int main (int argc, char **argv)
   /* Just show info if "@" was first argument. */
 
   if (show_only)
-  { fprintf (stderr, "%s\n", ds->sim_info);
+  { printf ("%s\n", ds->sim_info);
     exit(0);
   }
 
@@ -363,19 +363,32 @@ static double compute_potential_energy (struct dynamic_state *ds)
 
   dblptr *sort = I(ds).sort;
   double *qx = I(ds).qx;
+  double W = I(ds).W;
   int N = I(ds).N;
 
   double dx, dy, d2;
-  int ii, jj, i, j;
+  int ii, jj, kk, i, j;
+  double x0;
   double U;
 
   U = 0;
+  kk = 0;
   for (ii = 1; ii < N; ii++)
-  { i = sort[ii] - qx;
-    for (jj = 0; jj < ii; jj++)
+  { x0 = *sort[ii] - LJ_LIM;
+    while (kk < ii && *sort[kk] <= x0) kk += 1;
+    i = sort[ii] - qx;
+    for (jj = kk; jj < ii; jj++)
     { j = sort[jj] - qx;
       d2 = squared_distance (ds, i, j, &dx, &dy);
       U += pair_energy(d2);
+    }
+    if (kk > 0)
+    { x0 = *sort[ii] + LJ_LIM - W;
+      for (jj = 0; jj < ii && *sort[jj] < x0; jj++)
+      { j = sort[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        U += pair_energy(d2);
+      }
     }
   }
 
@@ -420,17 +433,29 @@ static double pair_energy_deriv (double d2)
 
 static void compute_gradient (struct dynamic_state *ds)
 { 
+  x_sort(ds);
+
+  dblptr *sort = I(ds).sort;
+  double *qx = I(ds).qx;
   double *gx = I(ds).gx;
   double *gy = I(ds).gy;
+  double W = I(ds).W;
   int N = I(ds).N;
+
   double dx, dy, d2, g;
-  int i, j;
+  int ii, jj, kk, i, j;
+  double x0;
   
   for (i = 0; i < N; i++) gx[i] = gy[i] = 0;
 
-  for (i = 1; i < N; i++)
-  { for (j = 0; j < i; j++)
-    { d2 = squared_distance (ds, i, j, &dx, &dy);
+  kk = 0;
+  for (ii = 1; ii < N; ii++)
+  { x0 = *sort[ii] - LJ_LIM;
+    while (kk < ii && *sort[kk] <= x0) kk += 1;
+    i = sort[ii] - qx;
+    for (jj = kk; jj < ii; jj++)
+    { j = sort[jj] - qx;
+      d2 = squared_distance (ds, i, j, &dx, &dy);
       g = pair_energy_deriv(d2);
       if (g == 0)
       { continue;
@@ -440,6 +465,22 @@ static void compute_gradient (struct dynamic_state *ds)
       gy[i] += dy*g;
       gx[j] -= dx*g;
       gy[j] -= dy*g;
+    }
+    if (kk > 0)
+    { x0 = *sort[ii] + LJ_LIM - W;
+      for (jj = 0; jj < ii && *sort[jj] < x0; jj++)
+      { j = sort[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        g = pair_energy_deriv(d2);
+        if (g == 0)
+        { continue;
+        }
+        g *= 2;
+        gx[i] += dx*g;
+        gy[i] += dy*g;
+        gx[j] -= dx*g;
+        gy[j] -= dy*g;
+      }
     }
   }
 }
