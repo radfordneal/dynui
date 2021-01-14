@@ -1,0 +1,5 @@
+#!/bin/bash
+
+time LJ2D @100 tst.result 100 100 100 / 0.99 0 4
+LJ2D @ tst.result
+cmp tst.result tst.save
