@@ -39,7 +39,10 @@ struct LJ_state
   double *qx, *qy;	/* Particle positions */
   double *px, *py;	/* Particle momenta */
   double *gx, *gy;	/* Gradients of energy w.r.t. position */
-  dblptr *sort;		/* Pointers to x coordinates in sorted order */
+  int bands;		/* Number of bands in y direction */
+  int *n_in_band;	/* Number of molecules in each band */
+  dblptr **sorts;	/* Ptr to array of ptrs to x coords in sorted order */
+  dblptr *ysort;	/* Pointers to y coords in sorted order */
   dblptr *tmp;		/* Temporary storage for sort */
 };
 
@@ -51,20 +54,40 @@ struct LJ_state
 static char *save_file;
 
 
-/* ALLOCATE MEMORY FOR STATE. */
+/* ALLOCATE MEMORY FOR STATE. Also decides on number of bands in y direction. */
 
 void alloc (struct LJ_state *I)
 {
+  I->bands = (int) (I->H / LJ_LIM);
+  while (10*I->bands > I->N)
+  { I->bands -= 1;
+  }
+  if (I->bands == 0)
+  { I->bands = 1;
+  }
+
+  I->bands = 1;  /* FOR NOW */
+
   if ((I->qx = calloc (I->N, sizeof (double))) == NULL
    || (I->qy = calloc (I->N, sizeof (double))) == NULL
    || (I->px = calloc (I->N, sizeof (double))) == NULL
    || (I->py = calloc (I->N, sizeof (double))) == NULL
    || (I->gx = calloc (I->N, sizeof (double))) == NULL
    || (I->gy = calloc (I->N, sizeof (double))) == NULL
-   || (I->sort = calloc (I->N, sizeof (dblptr))) == NULL
-   || (I->tmp = calloc (I->N, sizeof (dblptr))) == NULL)
+   || (I->tmp = calloc (I->N, sizeof (dblptr))) == NULL
+   || (I->ysort = calloc (I->N, sizeof (dblptr))) == NULL
+   || (I->n_in_band = calloc (I->bands, sizeof (int))) == NULL
+   || (I->sorts = calloc (I->bands, sizeof (dblptr*))) == NULL)
   { fprintf (stderr, "Can't allocate enough memory\n");
-    exit (1);
+    exit(-4);
+  }
+
+  int b;
+  for (b = 0; b < I->bands; b++)
+  { if ((I->sorts[b] = calloc (I->N, sizeof (dblptr))) == NULL)
+    { fprintf (stderr, "Can't allocate enough memory\n");
+      exit(-4);
+    }
   }
 }
 
@@ -290,7 +313,7 @@ int main (int argc, char **argv)
 }
 
 
-/* SORT MOLECULES BY X COORDINATE. */
+/* SORT MOLECULES BY X COORDINATE WITHIN EACH Y COORDINATE BAND. */
 
 #define merge_sort risort
 #define merge_value dblptr
@@ -300,17 +323,39 @@ int main (int argc, char **argv)
 
 static void x_sort (struct dynamic_state *ds)
 {
-  dblptr *sort = I(ds).sort;
+  int bands = I(ds).bands;
+  int *n_in_band = I(ds).n_in_band;
+  dblptr *ysort = I(ds).ysort;
   dblptr *tmp = I(ds).tmp;
+  dblptr **sorts = I(ds).sorts;
   double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  int H = I(ds).H;
   int N = I(ds).N;
-  int ii;
+  int ii, b;
 
   for (ii = 0; ii < N; ii++)
-  { tmp[ii] = qx+ii;
+  { tmp[ii] = qy+ii;
   }
 
-  risort (sort, tmp, N);
+  risort (ysort, tmp, N);
+
+  for (b = 0; b < bands; b++)
+  { n_in_band[b] = 0;
+  }
+
+  ii = 0;
+  for (b = 0; b < bands; b++)
+  { double upper = H * ((b+1.0) / bands);
+    int n = 0;
+    while (ii < N && *ysort[ii] <= upper)
+    { tmp[n] = qx + (ysort[ii] - qy);
+      n += 1;
+      ii += 1;
+    }
+    risort (sorts[b], tmp, n);
+    n_in_band[b] = n;
+  }
 }
 
 
@@ -361,7 +406,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
 { 
   x_sort(ds);
 
-  dblptr *sort = I(ds).sort;
+  dblptr *sort = I(ds).sorts[0];
   double *qx = I(ds).qx;
   double W = I(ds).W;
   int N = I(ds).N;
@@ -435,7 +480,7 @@ static void compute_gradient (struct dynamic_state *ds)
 { 
   x_sort(ds);
 
-  dblptr *sort = I(ds).sort;
+  dblptr *sort = I(ds).sorts[0];
   double *qx = I(ds).qx;
   double *gx = I(ds).gx;
   double *gy = I(ds).gy;
