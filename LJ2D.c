@@ -400,7 +400,7 @@ static double pair_energy (double d2)
   double t6 = 1/(d2*d2*d2);
   double t12 = t6*t6;
 
-  return 4 * (t12 - t6) + LJ_SHIFT;
+  return 4 * (t12 - t6) - LJ_SHIFT;
 }
 
 
