@@ -5,6 +5,10 @@
 #include "dynui.h"
 
 
+#define CHECK 0		/* Should potential energy and its gradient be checked
+			   against the simple implementation? */
+
+
 /* LIMITS ON POTENTIAL. */
 
 #define LJ_LIM 4.0	/* Limit on distance where potential is non-zero */
@@ -400,6 +404,27 @@ static double pair_energy (double d2)
 }
 
 
+/* COMPUTE POTENTIAL ENERGY - SIMPLE VERSION. */
+
+static double simple_potential_energy (struct dynamic_state *ds)
+{ 
+  int N = I(ds).N;
+  double U;
+  double dx, dy, d2;
+  int i, j;
+
+  U = 0;
+  for (i = 1; i < N; i++)
+  { for (j = 0; j < i; j++)
+    { d2 = squared_distance (ds, i, j, &dx, &dy);
+      U += pair_energy(d2);
+    }
+  }
+
+  return U;
+}
+
+
 /* COMPUTE POTENTIAL ENERGY. */
 
 static double compute_potential_energy (struct dynamic_state *ds)
@@ -436,6 +461,14 @@ static double compute_potential_energy (struct dynamic_state *ds)
       }
     }
   }
+
+# if CHECK
+  { double diff = fabs (U - simple_potential_energy(ds));
+    if (diff > N*1e-13)
+    { fprintf (stderr, "Difference from simple potential energy: %g\n", diff);
+    }
+  }
+# endif
 
   return U;
 }
@@ -474,6 +507,35 @@ static double pair_energy_deriv (double d2)
 }
 
 
+/* COMPUTE GRADIENT OF POTENTIAL ENERGY - SIMPLE VERSION. */
+
+static void simple_gradient (struct dynamic_state *ds)
+{ 
+  double *gx = I(ds).gx;
+  double *gy = I(ds).gy;
+  int N = I(ds).N;
+  double dx, dy, d2, g;
+  int i, j;
+  
+  for (i = 0; i < N; i++) gx[i] = gy[i] = 0;
+
+  for (i = 1; i < N; i++)
+  { for (j = 0; j < i; j++)
+    { d2 = squared_distance (ds, i, j, &dx, &dy);
+      g = pair_energy_deriv(d2);
+      if (g == 0)
+      { continue;
+      }
+      g *= 2;
+      gx[i] += dx*g;
+      gy[i] += dy*g;
+      gx[j] -= dx*g;
+      gy[j] -= dy*g;
+    }
+  }
+}
+
+
 /* COMPUTE GRADIENT OF POTENTIAL ENERGY W.R.T. MOLECULE POSITIONS. */
 
 static void compute_gradient (struct dynamic_state *ds)
@@ -490,6 +552,13 @@ static void compute_gradient (struct dynamic_state *ds)
   double dx, dy, d2, g;
   int ii, jj, kk, i, j;
   double x0;
+
+# if CHECK
+  double sgx[N], sgy[N];
+  simple_gradient(ds);
+  memcpy (sgx, gx, N*sizeof(double));
+  memcpy (sgy, gy, N*sizeof(double));
+# endif
   
   for (i = 0; i < N; i++) gx[i] = gy[i] = 0;
 
@@ -528,6 +597,21 @@ static void compute_gradient (struct dynamic_state *ds)
       }
     }
   }
+
+# if CHECK
+  { double max_diff = 0;
+    for (i = 0; i < N; i++)
+    { double diff;
+      diff = fabs (gx[i] - sgx[i]);
+      if (diff > max_diff) max_diff = diff;
+      diff = fabs (gy[i] - sgy[i]);
+      if (diff > max_diff) max_diff = diff;
+    }
+    if (max_diff > 1e-12)
+    { fprintf (stderr, "Max difference from simple gradient: %g\n", max_diff);
+    }
+  }
+# endif
 }
 
 
