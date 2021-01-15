@@ -34,8 +34,11 @@
 */
 
 
-#define CHECK 0		/* Should potential energy and its gradient be checked
-			   against the simple implementation? */
+/* OPTION FOR CHECKING OPTIMIZED COMPUTATIONS OF POTENTIAL ENERGY / GRADIENT. */
+
+#define CHECK 1   /* 0 = use only the optimized energy/gradient computations
+                     1 = use optimized computations, then check with simple ones
+                    -1 = use only the simple energy/gradient computations */
 
 
 /* LIMITS ON POTENTIAL. */
@@ -298,6 +301,14 @@ int main (int argc, char **argv)
     }
   }
 
+  if (0)
+  { fprintf (stderr, "Positions:");
+    for (i = 0; i < I(ds).N; i++)
+    { fprintf (stderr, " %g:%g", I(ds).qx[i], I(ds).qy[i]);
+    }
+    fprintf (stderr, "\n");
+  }
+
   /* Set initial information string. */
 
   set_info (ds);
@@ -365,27 +376,50 @@ static void x_sort (struct dynamic_state *ds)
   int N = I(ds).N;
   int ii, b;
 
-  for (ii = 0; ii < N; ii++)
-  { tmp[ii] = qy+ii;
+  for (ii = 0; ii < N; ii++) tmp[ii] = qy+ii;
+
+  if (0)
+  { fprintf(stderr,"Before ysort:");
+    for (ii = 0; ii < N; ii++) 
+    { fprintf (stderr, " %d:%g", (int)(tmp[ii]-qy), *tmp[ii]);
+    }
+    fprintf(stderr,"\n");
   }
 
   risort (ysort, tmp, N);
 
-  for (b = 0; b < bands; b++)
-  { n_in_band[b] = 0;
+  if (0)
+  { fprintf(stderr,"After ysort:");
+    for (ii = 0; ii < N; ii++) 
+    { fprintf (stderr, " %d:%g", (int)(ysort[ii]-qy), *ysort[ii]);
+    }
+    fprintf(stderr,"\n");
   }
+
+  for (b = 0; b < bands; b++) n_in_band[b] = 0;
   ii = 0;
+
   for (b = 0; b < bands; b++)
-  { double upper = H * ((b+1.0) / bands);
+  { 
+    double upper = H * ((b+1.0) / bands);
     int n = 0;
+
     while (ii < N && *ysort[ii] <= upper)
     { tmp[n] = qx + (ysort[ii] - qy);
       n += 1;
       ii += 1;
     }
+
     risort (sorts[b], tmp, n);
     n_in_band[b] = n;
-    // fprintf(stderr,"Band %d has %d molecules\n",b,n);
+
+    if (0)
+    { fprintf(stderr,"Band %d (%d):",b,n);
+      for (ii = 0; ii < n; ii++) 
+      { fprintf (stderr, " %d:%g", (int)(sorts[b][ii]-qx), *sorts[b][ii]);
+      }
+      fprintf(stderr,"\n");
+    }
   }
 }
 
@@ -427,6 +461,10 @@ static double pair_energy (double d2)
   double t6 = 1/(d2*d2*d2);
   double t12 = t6*t6;
 
+  if (0)
+  { fprintf (stderr, "non-zero energy for pair at distance %g\n", sqrt(d2));
+  }
+
   return 4 * (t12 - t6) - LJ_SHIFT;
 }
 
@@ -444,7 +482,12 @@ static double simple_potential_energy (struct dynamic_state *ds)
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
     { d2 = squared_distance (ds, i, j, &dx, &dy);
-      U += pair_energy(d2);
+      double u = pair_energy(d2);
+      U += u;
+      if (0)
+      { fprintf (stderr, "Simple potential: %d %d : %g %g : %g %g\n",
+                 i, j, dx, dy, sqrt(d2), u);
+      }
     }
   }
 
@@ -456,6 +499,10 @@ static double simple_potential_energy (struct dynamic_state *ds)
 
 static double compute_potential_energy (struct dynamic_state *ds)
 { 
+  if (CHECK == -1)
+  { return simple_potential_energy(ds);
+  }
+
   x_sort(ds);
 
   dblptr **sorts = I(ds).sorts;
@@ -513,13 +560,11 @@ static double compute_potential_energy (struct dynamic_state *ds)
       /* Look at pairs of ii with molecules earlier in band b0 that are
          within LJ_LIM in x coordinate because of forward wraparound. */
 
-      if (k0 > 0)
-      { x1 = *s0[ii] + LJ_LIM - W;
-        for (jj = 0; jj < ii && *s0[jj] < x1; jj++)
-        { j = s0[jj] - qx;
-          d2 = squared_distance (ds, i, j, &dx, &dy);
-          U += pair_energy(d2);
-        }
+      x1 = *s0[ii] + LJ_LIM - W;
+      for (jj = 0; jj < k0 && *s0[jj] < x1; jj++)
+      { j = s0[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        U += pair_energy(d2);
       }
 
       if (b1 == b0) continue;
@@ -558,7 +603,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
     }
   }
 
-# if CHECK
+# if CHECK == 1
   { double diff = fabs (U - simple_potential_energy(ds));
     if (diff > N*1e-13)
     { fprintf (stderr, "Difference from simple potential energy: %g\n", diff);
@@ -649,9 +694,12 @@ static void compute_gradient (struct dynamic_state *ds)
   int ii, jj, kk, i, j;
   double x0;
 
-  simple_gradient(ds); return;  /* FOR NOW */
+  if (CHECK == -1)
+  { simple_gradient(ds);
+    return;
+  }
 
-# if CHECK
+# if CHECK == 1
   double sgx[N], sgy[N];
   simple_gradient(ds);
   memcpy (sgx, gx, N*sizeof(double));
@@ -696,7 +744,7 @@ static void compute_gradient (struct dynamic_state *ds)
     }
   }
 
-# if CHECK
+# if CHECK == 1
   { double max_diff = 0;
     for (i = 0; i < N; i++)
     { double diff;
