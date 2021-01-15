@@ -5,6 +5,35 @@
 #include "dynui.h"
 
 
+/* Notes on implementation:
+
+   Only pairs of molecules with distance less than LJ_LIM need be
+   considered, since the pair potential is forced to zero beyond that
+   distance.  To rapidly identify the pairs within this distance, two
+   strategies are used.
+
+   First, molecules are put in bands according to y coordinate, with
+   the number of bands being chosen so that the range of y coordinates
+   in a band is no more the LJ_LIM.  This ensures that the molecules
+   of a relevant pair will either be in the same band or in adjacent
+   bands.
+
+   Second, molecules within a band are sorted by x coordinate.  As the
+   molecules in a band are visited in x coordinate order, molecules in
+   the same and preceding band (wrapping around) that differ by less
+   than LJ_LIM in x coordinate can be efficiently located.
+
+   A pair of molecules should contribute only one term to the
+   potential energy (not two for each ordering of the pair).  This is
+   ensured by looking only at pairs within a band that are ordered by
+   x coordinate, and by looking only at pairs between adjacent bands
+   that are ordered by band (wrapping around).  The case of only two
+   bands is special, because there is then only one pair of adjacent
+   bands, whereas the number of pairs of adjacent bands is equal to
+   the number of bands when this number is greater than two.
+*/
+
+
 #define CHECK 0		/* Should potential energy and its gradient be checked
 			   against the simple implementation? */
 
@@ -69,8 +98,6 @@ void alloc (struct LJ_state *I)
   if (I->bands == 0)
   { I->bands = 1;
   }
-
-  I->bands = 1;  /* FOR NOW */
 
   if ((I->qx = calloc (I->N, sizeof (double))) == NULL
    || (I->qy = calloc (I->N, sizeof (double))) == NULL
@@ -347,7 +374,6 @@ static void x_sort (struct dynamic_state *ds)
   for (b = 0; b < bands; b++)
   { n_in_band[b] = 0;
   }
-
   ii = 0;
   for (b = 0; b < bands; b++)
   { double upper = H * ((b+1.0) / bands);
@@ -359,6 +385,7 @@ static void x_sort (struct dynamic_state *ds)
     }
     risort (sorts[b], tmp, n);
     n_in_band[b] = n;
+    // fprintf(stderr,"Band %d has %d molecules\n",b,n);
   }
 }
 
@@ -431,31 +458,100 @@ static double compute_potential_energy (struct dynamic_state *ds)
 { 
   x_sort(ds);
 
-  dblptr *sort = I(ds).sorts[0];
+  dblptr **sorts = I(ds).sorts;
   double *qx = I(ds).qx;
+  int bands = I(ds).bands;
+  int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
   int N = I(ds).N;
 
-  double dx, dy, d2;
   int ii, jj, kk, i, j;
-  double x0;
+
+  dblptr *s0, *s1;
+  int b0, b1;
+  int n0, n1;
+  int k0, k1;
+
+  double dx, dy, d2;
+  double x0, x1;
   double U;
 
   U = 0;
-  kk = 0;
-  for (ii = 1; ii < N; ii++)
-  { x0 = *sort[ii] - LJ_LIM;
-    while (kk < ii && *sort[kk] <= x0) kk += 1;
-    i = sort[ii] - qx;
-    for (jj = kk; jj < ii; jj++)
-    { j = sort[jj] - qx;
-      d2 = squared_distance (ds, i, j, &dx, &dy);
-      U += pair_energy(d2);
-    }
-    if (kk > 0)
-    { x0 = *sort[ii] + LJ_LIM - W;
-      for (jj = 0; jj < ii && *sort[jj] < x0; jj++)
-      { j = sort[jj] - qx;
+
+  /* For each band, look at molecules in that band, paired with molecules
+     that are "earlier", either within the same band, or in the "preceding"
+     band. */
+
+  for (b0 = 0; b0 < bands; b0++)
+  { 
+    b1 = b0==0 && bands<3 ? 0 : b0==0 ? bands-1 : b0-1;
+    s0 = sorts[b0];
+    s1 = sorts[b1];
+    n0 = n_in_band[b0];
+    n1 = n_in_band[b1];
+    k0 = 0;
+    k1 = 0;
+
+    /* Go through molecules in band b0. */
+
+    for (ii = 0; ii < n0; ii++)
+    { 
+      x0 = *s0[ii] - LJ_LIM;
+      i = s0[ii] - qx;
+
+      while (k0 < ii && *s0[k0] <= x0) k0 += 1;
+
+      /* Look at pairs of ii with molecules earlier by x coordinate in
+         band b0 by less than LJ_LIM. */
+
+      for (jj = k0; jj < ii; jj++)
+      { j = s0[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        U += pair_energy(d2);
+      }
+
+      /* Look at pairs of ii with molecules earlier in band b0 that are
+         within LJ_LIM in x coordinate because of forward wraparound. */
+
+      if (k0 > 0)
+      { x1 = *s0[ii] + LJ_LIM - W;
+        for (jj = 0; jj < ii && *s0[jj] < x1; jj++)
+        { j = s0[jj] - qx;
+          d2 = squared_distance (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
+      }
+
+      if (b1 == b0) continue;
+
+      while (k1 < n1 && *s1[k1] <= x0) k1 += 1;
+
+      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+         in x coordinate (before or after), not accounting for wraparound. */
+
+      x1 = *s0[ii] + LJ_LIM;
+      for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
+      { j = s1[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        U += pair_energy(d2);
+      }
+
+      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+         in x coordinate wrapping around going forward. */
+
+      x1 = *s0[ii] + LJ_LIM - W;
+      for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
+      { j = s1[jj] - qx;
+        d2 = squared_distance (ds, i, j, &dx, &dy);
+        U += pair_energy(d2);
+      }
+
+      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+         in x coordinate wrapping around going backward. */
+
+      x1 = *s0[ii] - LJ_LIM + W;
+      for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
+      { j = s1[jj] - qx;
         d2 = squared_distance (ds, i, j, &dx, &dy);
         U += pair_energy(d2);
       }
@@ -552,6 +648,8 @@ static void compute_gradient (struct dynamic_state *ds)
   double dx, dy, d2, g;
   int ii, jj, kk, i, j;
   double x0;
+
+  simple_gradient(ds); return;  /* FOR NOW */
 
 # if CHECK
   double sgx[N], sgy[N];

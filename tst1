@@ -1,5 +1,6 @@
 #!/bin/bash
 
-time LJ2D @100 tst.result 100 100 100 / 0.99 0 4
-LJ2D @ tst.result
-cmp tst.result tst.save
+time LJ2D @100 tst1.result 100 100 100 / 0.99 0 4
+LJ2D @ tst1.result | tee tst1.out
+diff -u tst1.info tst1.out
+cmp tst1.save tst1.result
