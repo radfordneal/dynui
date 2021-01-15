@@ -284,7 +284,7 @@ static void create_controls (struct window_state *ws)
   y = ws->height - c_height + 6;
   h = c_height - 12;
 
-  for (i = 0; i < N_SPEEDS; i++)
+  for (i = 0; i < N_SCALES; i++)
   { ws->scales[i] = sfRectangleShape_create();
     p.x = x + (h+3)*i;
     p.y = y;
