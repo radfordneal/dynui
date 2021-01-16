@@ -1,6 +1,6 @@
 # MAKEFILE FOR DYNUI PROGRAMS.
 
-CFLAGS=-O3
+CFLAGS=-g -O3 -march=native -mtune=native
 
 all:	circle LJ2D
 

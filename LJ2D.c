@@ -116,6 +116,9 @@ void alloc (struct LJ_state *I)
     exit(-4);
   }
 
+  int i;
+  for (i = 0; i < I->N; i++) I->ysort[i] = I->qy+i;
+
   int b;
   for (b = 0; b < I->bands; b++)
   { if ((I->sorts[b] = calloc (I->N, sizeof (dblptr))) == NULL)
@@ -376,7 +379,7 @@ static void x_sort (struct dynamic_state *ds)
   int N = I(ds).N;
   int ii, b;
 
-  for (ii = 0; ii < N; ii++) tmp[ii] = qy+ii;
+  memcpy (tmp, ysort, N * sizeof(dblptr));
 
   if (0)
   { fprintf(stderr,"Before ysort:");
@@ -712,8 +715,8 @@ static void compute_gradient (struct dynamic_state *ds)
 # if CHECK == 1
   double sgx[N], sgy[N];
   simple_gradient(ds);
-  memcpy (sgx, gx, N*sizeof(double));
-  memcpy (sgy, gy, N*sizeof(double));
+  memcpy (sgx, gx, N * sizeof(double));
+  memcpy (sgy, gy, N * sizeof(double));
 # endif
   
   for (i = 0; i < N; i++) gx[i] = gy[i] = 0;
