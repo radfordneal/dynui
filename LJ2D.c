@@ -432,15 +432,19 @@ static void x_sort (struct dynamic_state *ds)
 static double squared_distance (struct dynamic_state *ds, int i, int j,
                                 double *sdx, double *sdy)
 {
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double W = I(ds).W;
+  double H = I(ds).H;
   double dx, dy;
 
-  dx =  I(ds).qx[i] - I(ds).qx[j];
-  while (dx < -I(ds).W/2) dx += I(ds).W;
-  while (dx >= I(ds).W/2) dx -= I(ds).W;
+  dx =  qx[i] - qx[j];
+  if (dx < -W/2) dx += W;
+  else if (dx >= W/2) dx -= W;
 
-  dy =  I(ds).qy[i] - I(ds).qy[j];
-  while (dy < -I(ds).H/2) dy += I(ds).H;
-  while (dy >= I(ds).H/2) dy -= I(ds).H;
+  dy =  qy[i] - qy[j];
+  if (dy < -H/2) dy += H;
+  else if (dy >= H/2) dy -= H;
 
   *sdx = dx;
   *sdy = dy;
