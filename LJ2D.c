@@ -55,7 +55,7 @@
 
 #define LJ_MAX \
   (4 * (1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N) \
-         - 1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N)) + LJ_SHIFT)
+         - 1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N)) - LJ_SHIFT)
 
 
 /* STATE OF A LENNARD-JONES SYSTEM. */
