@@ -568,15 +568,18 @@ static double simple_potential_energy (struct dynamic_state *ds)
 
 static double compute_potential_energy (struct dynamic_state *ds)
 { 
-# if CHECK == -1
+  /* Note that optimizations below don't work for small W or H, where
+     wraparound can occur even when simple difference is less than LJ_LIM. */
+
+  if (CHECK == -1 || I(ds).bands < 3 || I(ds).W < 2*LJ_LIM)
   { return simple_potential_energy(ds);
   }
-# endif
 
   x_sort(ds);
 
   dblptr **sorts = I(ds).sorts;
   double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
@@ -601,7 +604,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
 
   for (b0 = 0; b0 < bands; b0++)
   { 
-    b1 = b0==0 && bands<3 ? 0 : b0==0 ? bands-1 : b0-1;
+    b1 = b0==0 ? bands-1 : b0-1;
     s0 = sorts[b0];
     s1 = sorts[b1];
     n0 = n_in_band[b0];
@@ -637,38 +640,75 @@ static double compute_potential_energy (struct dynamic_state *ds)
         U += pair_energy(d2);
       }
 
-      if (b1 == b0) continue;
-
       while (k1 < n1 && *s1[k1] <= x0) k1 += 1;
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate (before or after), not accounting for wraparound. */
+      if (b1 < b0)  /* no wraparound of y between b0 and b1 */
+      {
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate (before or after), not accounting for wraparound. */
 
-      x1 = *s0[ii] + LJ_LIM;
-      for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
-      { j = s1[jj] - qx;
-        d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
-        U += pair_energy(d2);
+        x1 = *s0[ii] + LJ_LIM;
+        for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going forward. */
+
+        x1 = *s0[ii] + LJ_LIM - W;
+        for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going backward. */
+
+        x1 = *s0[ii] - LJ_LIM + W;
+        for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
       }
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate wrapping around going forward. */
+      else  /* there may be y wraparound between b0 and b1 */
+      {
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate (before or after), not accounting for wraparound. */
 
-      x1 = *s0[ii] + LJ_LIM - W;
-      for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
-      { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
-        U += pair_energy(d2);
-      }
+        x1 = *s0[ii] + LJ_LIM;
+        for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate wrapping around going backward. */
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going forward. */
 
-      x1 = *s0[ii] - LJ_LIM + W;
-      for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
-      { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
-        U += pair_energy(d2);
+        x1 = *s0[ii] + LJ_LIM - W;
+        for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          d2 = squared_distance (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going backward. */
+
+        x1 = *s0[ii] - LJ_LIM + W;
+        for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
+        { j = s1[jj] - qx;
+          d2 = squared_distance (ds, i, j, &dx, &dy);
+          U += pair_energy(d2);
+        }
       }
     }
   }
@@ -751,16 +791,19 @@ static void simple_gradient (struct dynamic_state *ds)
 
 static void compute_gradient (struct dynamic_state *ds)
 { 
-# if CHECK == -1
+  /* Note that optimizations below don't work for small W or H, where
+     wraparound can occur even when simple difference is less than LJ_LIM. */
+
+  if (CHECK == -1 || I(ds).bands < 3 || I(ds).W < 2*LJ_LIM)
   { simple_gradient(ds);
     return;
   }
-# endif
 
   x_sort(ds);
 
   dblptr **sorts = I(ds).sorts;
   double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
   double *gx = I(ds).gx;
   double *gy = I(ds).gy;
   int bands = I(ds).bands;
@@ -793,7 +836,7 @@ static void compute_gradient (struct dynamic_state *ds)
 
   for (b0 = 0; b0 < bands; b0++)
   {
-    b1 = b0==0 && bands<3 ? 0 : b0==0 ? bands-1 : b0-1;
+    b1 = b0==0 ? bands-1 : b0-1;
     s0 = sorts[b0];
     s1 = sorts[b1];
     n0 = n_in_band[b0];
@@ -835,47 +878,93 @@ static void compute_gradient (struct dynamic_state *ds)
         gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
       }
 
-      if (b1 == b0) continue;
-
       while (k1 < n1 && *s1[k1] <= x0) k1 += 1;
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate (before or after), not accounting for wraparound. */
+      if (b1 < b0)  /* no wraparound of y between b0 and b1 */
+      {
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate (before or after), not accounting for wraparound. */
 
-      x1 = *s0[ii] + LJ_LIM;
-      for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
-      { j = s1[jj] - qx;
-        d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
-        g = pair_energy_deriv(d2);
-        if (g == 0) continue;
-        gx[i] += 2*g*dx; gy[i] += 2*g*dy;
-        gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        x1 = *s0[ii] + LJ_LIM;
+        for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going forward. */
+
+        x1 = *s0[ii] + LJ_LIM - W;
+        for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going backward. */
+
+        x1 = *s0[ii] - LJ_LIM + W;
+        for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
+        { j = s1[jj] - qx;
+          if (qy[i]-qy[j] >= LJ_LIM) continue;
+          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
       }
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate wrapping around going forward. */
+      else  /* there may be y wraparound between b0 and b1 */
+      {
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate (before or after), not accounting for wraparound. */
 
-      x1 = *s0[ii] + LJ_LIM - W;
-      for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
-      { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
-        g = pair_energy_deriv(d2);
-        if (g == 0) continue;
-        gx[i] += 2*g*dx; gy[i] += 2*g*dy;
-        gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
-      }
+        x1 = *s0[ii] + LJ_LIM;
+        for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
 
-      /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
-         in x coordinate wrapping around going backward. */
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going forward. */
 
-      x1 = *s0[ii] - LJ_LIM + W;
-      for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
-      { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
-        g = pair_energy_deriv(d2);
-        if (g == 0) continue;
-        gx[i] += 2*g*dx; gy[i] += 2*g*dy;
-        gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        x1 = *s0[ii] + LJ_LIM - W;
+        for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
+        { j = s1[jj] - qx;
+          d2 = squared_distance (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
+
+        /* Look at pairs of ii with molecules in band b1 that are within LJ_LIM
+           in x coordinate wrapping around going backward. */
+
+        x1 = *s0[ii] - LJ_LIM + W;
+        for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
+        { j = s1[jj] - qx;
+          d2 = squared_distance (ds, i, j, &dx, &dy);
+          g = pair_energy_deriv(d2);
+          if (g == 0) continue;
+          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
+        }
       }
     }
   }
