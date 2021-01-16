@@ -452,6 +452,68 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
   return dx*dx + dy*dy;
 }
 
+/* Version where wrapping is assumed to not be necessary for x coordinate. */
+
+static double squared_distance_nowrap_x (struct dynamic_state *ds, int i, int j,
+                                         double *sdx, double *sdy)
+{
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double H = I(ds).H;
+  double dx, dy;
+
+  dx =  qx[i] - qx[j];
+
+  dy =  qy[i] - qy[j];
+  if (dy < -H/2) dy += H;
+  else if (dy >= H/2) dy -= H;
+
+  *sdx = dx;
+  *sdy = dy;
+
+  return dx*dx + dy*dy;
+}
+
+/* Version where wrapping is assumed to not be necessary for y coordinate. */
+
+static double squared_distance_nowrap_y (struct dynamic_state *ds, int i, int j,
+                                         double *sdx, double *sdy)
+{
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double W = I(ds).W;
+  double dx, dy;
+
+  dx =  qx[i] - qx[j];
+  if (dx < -W/2) dx += W;
+  else if (dx >= W/2) dx -= W;
+
+  dy =  qy[i] - qy[j];
+
+  *sdx = dx;
+  *sdy = dy;
+
+  return dx*dx + dy*dy;
+}
+
+/* Version where wrapping is assumed to not be necessary for both coordinates.*/
+
+static double squared_distance_nowrap_xy(struct dynamic_state *ds, int i, int j,
+                                         double *sdx, double *sdy)
+{
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double dx, dy;
+
+  dx =  qx[i] - qx[j];
+  dy =  qy[i] - qy[j];
+
+  *sdx = dx;
+  *sdy = dy;
+
+  return dx*dx + dy*dy;
+}
+
 
 /* COMPUTE CONTRIBUTION TO ENERGY FROM A PAIR, GIVEN SQUARED DISTANCE. */
 
@@ -561,7 +623,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
 
       for (jj = k0; jj < ii; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
         U += pair_energy(d2);
       }
 
@@ -571,7 +633,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM - W;
       for (jj = 0; jj < k0 && *s0[jj] < x1; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
         U += pair_energy(d2);
       }
 
@@ -585,7 +647,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM;
       for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
       { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
         U += pair_energy(d2);
       }
 
@@ -753,7 +815,7 @@ static void compute_gradient (struct dynamic_state *ds)
 
       for (jj = k0; jj < ii; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
         gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -766,7 +828,7 @@ static void compute_gradient (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM - W;
       for (jj = 0; jj < k0 && *s0[jj] < x1; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
         gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -783,7 +845,7 @@ static void compute_gradient (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM;
       for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
       { j = s1[jj] - qx;
-        d2 = squared_distance (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
         gx[i] += 2*g*dx; gy[i] += 2*g*dy;
