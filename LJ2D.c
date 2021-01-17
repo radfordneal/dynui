@@ -781,7 +781,7 @@ static double compute_kinetic_energy (struct dynamic_state *ds)
   int i;
 
   K = 0;
-  for (i = 1; i < N; i++)
+  for (i = 0; i < N; i++)
   { K += I(ds).px[i] * I(ds).px[i];
     K += I(ds).py[i] * I(ds).py[i];
   }
