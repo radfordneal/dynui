@@ -145,7 +145,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
       if (ws->running)
       { double current_time;
         double gap, oldgap;
+        int advances;
         oldgap = HUGE_VAL;
+        advances = 0;
         ws->running_behind = 0;
         for (;;) 
         { current_time 
@@ -155,11 +157,12 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
           if (gap <= 0)
           { break;
           }
-          if (gap > 0.95*oldgap) 
+          if (gap > 1.1*oldgap || gap > 0.95*oldgap && advances > 1) 
           { ws->running_behind = 1;
             break;
           }
           dynui_advance (ds);
+          advances += 1;
           oldgap = gap;
         }
       }
@@ -297,7 +300,7 @@ static void create_controls (struct window_state *ws)
   /* Text of simulation time. */
 
   ws->sim_time_display = sfText_create();
-  sfVector2f t = { ws->width-5.2*(c_height-4)-2.7*c_height, 
+  sfVector2f t = { ws->width-5.2*(c_height-4)-2.7*c_height+6, 
                    ws->height-c_height-1 }; 
   sfText_setPosition (ws->sim_time_display, t);
   sfText_setFont (ws->sim_time_display, ws->font);
@@ -307,7 +310,7 @@ static void create_controls (struct window_state *ws)
   /* Text of simulation information. */
 
   ws->sim_info_display = sfText_create();
-  sfVector2f ti = { 45 + (h+3)*(N_SPEEDS+N_SCALES),
+  sfVector2f ti = { 33 + (h+3)*(N_SPEEDS+N_SCALES),
                     ws->height-c_height-1 }; 
   sfText_setPosition (ws->sim_info_display, ti);
   sfText_setFont (ws->sim_info_display, ws->font);
@@ -316,7 +319,7 @@ static void create_controls (struct window_state *ws)
 
   /* Save button. */
 
-  x = ws->width - 2.2*c_height;
+  x = ws->width - 2.2*c_height + 3;
   y = ws->height - c_height + 3;
   h = c_height - 7;
 

@@ -1315,7 +1315,7 @@ static void set_info (struct dynamic_state *ds)
   double K = compute_kinetic_energy(ds);
   static char s[100];
 
-  sprintf (s, "%6.1f=U%6.1f=K%6.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
+  sprintf (s, "%7.1f=U%7.1f=K%7.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
   ds->sim_info = s;
 }
 
