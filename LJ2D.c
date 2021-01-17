@@ -439,8 +439,8 @@ static void x_sort (struct dynamic_state *ds)
 static double squared_distance (struct dynamic_state *ds, int i, int j,
                                 double *sdx, double *sdy)
 {
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double W = I(ds).W;
   double H = I(ds).H;
   double dx, dy;
@@ -464,8 +464,8 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
 static double squared_distance_nowrap_x (struct dynamic_state *ds, int i, int j,
                                          double *sdx, double *sdy)
 {
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double H = I(ds).H;
   double dx, dy;
 
@@ -486,8 +486,8 @@ static double squared_distance_nowrap_x (struct dynamic_state *ds, int i, int j,
 static double squared_distance_nowrap_y (struct dynamic_state *ds, int i, int j,
                                          double *sdx, double *sdy)
 {
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double W = I(ds).W;
   double dx, dy;
 
@@ -508,8 +508,8 @@ static double squared_distance_nowrap_y (struct dynamic_state *ds, int i, int j,
 static double squared_distance_nowrap_xy(struct dynamic_state *ds, int i, int j,
                                          double *sdx, double *sdy)
 {
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double dx, dy;
 
   dx =  qx[i] - qx[j];
@@ -550,8 +550,8 @@ static double pair_energy (double d2)
 static double bowl_potential (struct dynamic_state *ds)
 { double U = 0;
 # if BOWL
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double W = I(ds).W;
   double H = I(ds).H;
   int N = I(ds).N;
@@ -569,10 +569,10 @@ static double bowl_potential (struct dynamic_state *ds)
 static void bowl_gradient (struct dynamic_state *ds)
 { 
 # if BOWL
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
-  double *gx = I(ds).gx;
-  double *gy = I(ds).gy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
+  double *restrict gx = I(ds).gx;
+  double *restrict gy = I(ds).gy;
   double W = I(ds).W;
   double H = I(ds).H;
   int N = I(ds).N;
@@ -625,8 +625,8 @@ static double compute_potential_energy (struct dynamic_state *ds)
   x_sort(ds);
 
   dblptr **sorts = I(ds).sorts;
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
@@ -809,8 +809,8 @@ static double pair_energy_deriv (double d2)
 
 static void simple_gradient (struct dynamic_state *ds)
 { 
-  double *gx = I(ds).gx;
-  double *gy = I(ds).gy;
+  double *restrict gx = I(ds).gx;
+  double *restrict gy = I(ds).gy;
   int N = I(ds).N;
   double dx, dy, d2, g;
   int i, j;
@@ -851,10 +851,10 @@ static void compute_gradient (struct dynamic_state *ds)
   x_sort(ds);
 
   dblptr **sorts = I(ds).sorts;
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
-  double *gx = I(ds).gx;
-  double *gy = I(ds).gy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
+  double *restrict gx = I(ds).gx;
+  double *restrict gy = I(ds).gy;
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
@@ -862,7 +862,7 @@ static void compute_gradient (struct dynamic_state *ds)
 
   int ii, jj, kk, i, j;
 
-  dblptr *s0, *s1;
+  dblptr *restrict s0, *restrict s1;
   int b0, b1;
   int n0, n1;
   int k0, k1;
@@ -1041,10 +1041,10 @@ static void compute_gradient (struct dynamic_state *ds)
 
 static void check_gradient (struct dynamic_state *ds, double eps)
 {
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
-  double *gx = I(ds).gx;
-  double *gy = I(ds).gy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
+  double *restrict gx = I(ds).gx;
+  double *restrict gy = I(ds).gy;
   int N = I(ds).N;
   int i;
 
@@ -1069,19 +1069,19 @@ static void check_gradient (struct dynamic_state *ds, double eps)
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
 static double delta_t = 0.05;
-static int steps = 1000;
+static int steps = 100;
 
 void dynui_advance (struct dynamic_state *ds)
 {
   double eta = delta_t / steps;
   double half_eta = eta/2;
   double alpha = I(ds).alpha;
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
-  double *px = I(ds).px;
-  double *py = I(ds).py;
-  double *gx = I(ds).gx;
-  double *gy = I(ds).gy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
+  double *restrict px = I(ds).px;
+  double *restrict py = I(ds).py;
+  double *restrict gx = I(ds).gx;
+  double *restrict gy = I(ds).gy;
   double W = I(ds).W;
   double H = I(ds).H;
   int N = I(ds).N;
@@ -1156,8 +1156,8 @@ void dynui_view (struct dynamic_state *ds, struct window_state *ws)
 { 
   double scaled_radius = ws->scale * dot_radius;
 
-  double *qx = I(ds).qx;
-  double *qy = I(ds).qy;
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double W = I(ds).W;
   double H = I(ds).H;
   int N = I(ds).N;
