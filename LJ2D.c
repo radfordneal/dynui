@@ -988,14 +988,14 @@ static void compute_gradient (struct dynamic_state *ds)
 
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
-static double delta_t = 0.05;
-static int steps = 300;
+static double delta_t = 0.01;
+static int steps = 600;
 
 void dynui_advance (struct dynamic_state *ds)
 {
   double eta = delta_t / steps;
   double half_eta = eta/2;
-  double alpha = pow (I(ds).alpha, delta_t*steps);
+  double alpha = I(ds).alpha;
   double *qx = I(ds).qx;
   double *qy = I(ds).qy;
   double *px = I(ds).px;
@@ -1225,7 +1225,7 @@ void set_info (struct dynamic_state *ds)
   double K = compute_kinetic_energy(ds);
   static char s[100];
 
-  sprintf (s, "U %8.1f K %6.1f H %8.1f", U, K, U+K);
+  sprintf (s, "%6.1f=U%6.1f=K%6.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
   ds->sim_info = s;
 }
 
