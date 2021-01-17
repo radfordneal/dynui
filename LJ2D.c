@@ -157,7 +157,8 @@ void usage (void)
 }
 
 
-void set_info (struct dynamic_state *ds);
+static void check_gradient (struct dynamic_state *ds, double eps);
+static void set_info (struct dynamic_state *ds);
 
 
 /* MAIN PROGRAM. */
@@ -320,6 +321,7 @@ int main (int argc, char **argv)
 
   if (show_only)
   { printf ("%s\n", ds->sim_info);
+    if (0) check_gradient(ds,0.001);
     exit(0);
   }
 
@@ -986,10 +988,39 @@ static void compute_gradient (struct dynamic_state *ds)
 }
 
 
+/* CHECK SIMPLE GRADIENT COMPUTATION. */
+
+static void check_gradient (struct dynamic_state *ds, double eps)
+{
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double *gx = I(ds).gx;
+  double *gy = I(ds).gy;
+  int N = I(ds).N;
+  int i;
+
+  simple_gradient(ds);
+
+  for (i = 0; i < N; i++)
+  { double t, ax, bx, ay, by;
+    t = qx[i];
+    qx[i] = t - eps; ax = simple_potential_energy(ds);
+    qx[i] = t + eps; bx = simple_potential_energy(ds);
+    qx[i] = t;
+    t = qy[i];
+    qy[i] = t - eps; ay = simple_potential_energy(ds);
+    qy[i] = t + eps; by = simple_potential_energy(ds);
+    qy[i] = t;
+    printf ("%3d  x: %10.4f y: %10.4f\n",i,gx[i],gy[i]);
+    printf ("     x: %10.4f y: %10.4f\n",(bx-ax)/(2*eps),(by-ay)/(2*eps));
+  }
+}
+
+
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
-static double delta_t = 0.01;
-static int steps = 600;
+static double delta_t = 0.05;
+static int steps = 1000;
 
 void dynui_advance (struct dynamic_state *ds)
 {
@@ -1060,9 +1091,11 @@ void dynui_advance (struct dynamic_state *ds)
       }
     }
   }
-
+  
   ds->sim_time += delta_t;
   set_info (ds);
+
+  // fprintf(stderr,"%f %s %f\n",ds->sim_time,ds->sim_info,alpha);
 }
 
 
@@ -1219,7 +1252,7 @@ void dynui_terminate()
 
 /* SET INFORMATION STRING.  Shows potential and kinetic energy. */
 
-void set_info (struct dynamic_state *ds)
+static void set_info (struct dynamic_state *ds)
 {
   double U = compute_potential_energy(ds);
   double K = compute_kinetic_energy(ds);
