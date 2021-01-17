@@ -41,6 +41,11 @@
                     -1 = use only the simple energy/gradient computations */
 
 
+/* OPTIONAL "BOWL" POTENTIAL.  Meant primarily for testing purposes. */
+
+#define BOWL 0     /* Width of bowl that molecules live in, 0 if no bowl */
+
+
 /* LIMITS ON POTENTIAL. */
 
 #define LJ_LIM 4.0	/* Limit on distance where potential is non-zero */
@@ -540,6 +545,46 @@ static double pair_energy (double d2)
 }
 
 
+/* BOWL POTENTIAL.  Quadratic bowl of width BOWL, with middle at (W/2,H/2). */
+
+static double bowl_potential (struct dynamic_state *ds)
+{ double U = 0;
+# if BOWL
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double W = I(ds).W;
+  double H = I(ds).H;
+  int N = I(ds).N;
+  int i;
+  for (i = 0; i < N; i++)
+  { U += ((qx[i]-W/2)*(qx[i]-W/2) + (qy[i]-H/2)*(qy[i]-H/2)) / (2*BOWL*BOWL);
+  }
+# endif
+  return U;
+}
+
+
+/* ADD BOWL POTENTIAL GRADIENT. */
+
+static void bowl_gradient (struct dynamic_state *ds)
+{ 
+# if BOWL
+  double *qx = I(ds).qx;
+  double *qy = I(ds).qy;
+  double *gx = I(ds).gx;
+  double *gy = I(ds).gy;
+  double W = I(ds).W;
+  double H = I(ds).H;
+  int N = I(ds).N;
+  int i;
+  for (i = 0; i < N; i++)
+  { gx[i] += (qx[i]-W/2) / (BOWL*BOWL);
+    gy[i] += (qy[i]-H/2) / (BOWL*BOWL);
+  }
+# endif
+}
+
+
 /* COMPUTE POTENTIAL ENERGY - SIMPLE VERSION. */
 
 static double simple_potential_energy (struct dynamic_state *ds)
@@ -562,7 +607,7 @@ static double simple_potential_energy (struct dynamic_state *ds)
     }
   }
 
-  return U;
+  return U + bowl_potential(ds);
 }
 
 
@@ -723,7 +768,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
   }
 # endif
 
-  return U;
+  return U + bowl_potential(ds);
 }
 
 
@@ -786,6 +831,8 @@ static void simple_gradient (struct dynamic_state *ds)
       gy[j] -= dy*g;
     }
   }
+
+  bowl_gradient(ds);
 }
 
 
@@ -970,6 +1017,8 @@ static void compute_gradient (struct dynamic_state *ds)
       }
     }
   }
+
+  bowl_gradient(ds);
 
 # if CHECK == 1
   { double max_diff = 0;
