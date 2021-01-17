@@ -436,20 +436,16 @@ static void x_sort (struct dynamic_state *ds)
 
 /* COMPUTE SQUARED DISTANCE OF THE NEAREST IMAGES OF A PAIR OF MOLECULES. */
 
-static double squared_distance (struct dynamic_state *ds, int i, int j,
-                                double *sdx, double *sdy)
+static double squared_distance (double qxi, double qyi, double qxj, double qyj,
+                                double W, double H, double *sdx, double *sdy)
 {
-  double *restrict qx = I(ds).qx;
-  double *restrict qy = I(ds).qy;
-  double W = I(ds).W;
-  double H = I(ds).H;
   double dx, dy;
 
-  dx =  qx[i] - qx[j];
+  dx =  qxi - qxj;
   if (dx < -W/2) dx += W;
   else if (dx >= W/2) dx -= W;
 
-  dy =  qy[i] - qy[j];
+  dy =  qyi - qyj;
   if (dy < -H/2) dy += H;
   else if (dy >= H/2) dy -= H;
 
@@ -461,17 +457,15 @@ static double squared_distance (struct dynamic_state *ds, int i, int j,
 
 /* Version where wrapping is assumed to not be necessary for x coordinate. */
 
-static double squared_distance_nowrap_x (struct dynamic_state *ds, int i, int j,
-                                         double *sdx, double *sdy)
+static double squared_distance_nowrap_x 
+                               (double qxi, double qyi, double qxj, double qyj,
+                                double H, double *sdx, double *sdy)
 {
-  double *restrict qx = I(ds).qx;
-  double *restrict qy = I(ds).qy;
-  double H = I(ds).H;
   double dx, dy;
 
-  dx =  qx[i] - qx[j];
+  dx =  qxi - qxj;
 
-  dy =  qy[i] - qy[j];
+  dy =  qyi - qyj;
   if (dy < -H/2) dy += H;
   else if (dy >= H/2) dy -= H;
 
@@ -483,19 +477,17 @@ static double squared_distance_nowrap_x (struct dynamic_state *ds, int i, int j,
 
 /* Version where wrapping is assumed to not be necessary for y coordinate. */
 
-static double squared_distance_nowrap_y (struct dynamic_state *ds, int i, int j,
-                                         double *sdx, double *sdy)
+static double squared_distance_nowrap_y
+                               (double qxi, double qyi, double qxj, double qyj,
+                                double W, double *sdx, double *sdy)
 {
-  double *restrict qx = I(ds).qx;
-  double *restrict qy = I(ds).qy;
-  double W = I(ds).W;
   double dx, dy;
 
-  dx =  qx[i] - qx[j];
+  dx =  qxi - qxj;
   if (dx < -W/2) dx += W;
   else if (dx >= W/2) dx -= W;
 
-  dy =  qy[i] - qy[j];
+  dy =  qyi - qyj;
 
   *sdx = dx;
   *sdy = dy;
@@ -505,15 +497,14 @@ static double squared_distance_nowrap_y (struct dynamic_state *ds, int i, int j,
 
 /* Version where wrapping is assumed to not be necessary for both coordinates.*/
 
-static double squared_distance_nowrap_xy(struct dynamic_state *ds, int i, int j,
-                                         double *sdx, double *sdy)
+static double squared_distance_nowrap_xy
+                               (double qxi, double qyi, double qxj, double qyj,
+                                double *sdx, double *sdy)
 {
-  double *restrict qx = I(ds).qx;
-  double *restrict qy = I(ds).qy;
   double dx, dy;
 
-  dx =  qx[i] - qx[j];
-  dy =  qy[i] - qy[j];
+  dx =  qxi - qxj;
+  dy =  qyi - qyj;
 
   *sdx = dx;
   *sdy = dy;
@@ -589,6 +580,10 @@ static void bowl_gradient (struct dynamic_state *ds)
 
 static double simple_potential_energy (struct dynamic_state *ds)
 { 
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
+  int W = I(ds).W;
+  int H = I(ds).H;
   int N = I(ds).N;
   double U;
   double dx, dy, d2;
@@ -597,7 +592,7 @@ static double simple_potential_energy (struct dynamic_state *ds)
   U = 0;
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
-    { d2 = squared_distance (ds, i, j, &dx, &dy);
+    { d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
       double u = pair_energy(d2);
       U += u;
       if (0)
@@ -630,6 +625,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
+  double H = I(ds).H;
   int N = I(ds).N;
 
   int ii, jj, kk, i, j;
@@ -673,7 +669,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
 
       for (jj = k0; jj < ii; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_xy (qx[i], qy[i], qx[j], qy[j], &dx, &dy);
         U += pair_energy(d2);
       }
 
@@ -683,7 +679,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM - W;
       for (jj = 0; jj < k0 && *s0[jj] < x1; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_y(qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
         U += pair_energy(d2);
       }
 
@@ -698,7 +694,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_xy(qx[i], qy[i], qx[j], qy[j], &dx, &dy);
           U += pair_energy(d2);
         }
 
@@ -709,7 +705,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_y (qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
           U += pair_energy(d2);
         }
 
@@ -720,7 +716,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_y (qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
           U += pair_energy(d2);
         }
       }
@@ -733,7 +729,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         x1 = *s0[ii] + LJ_LIM;
         for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
-          d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_x (qx[i], qy[i], qx[j], qy[j], H, &dx, &dy);
           U += pair_energy(d2);
         }
 
@@ -743,7 +739,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         x1 = *s0[ii] + LJ_LIM - W;
         for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
-          d2 = squared_distance (ds, i, j, &dx, &dy);
+          d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
           U += pair_energy(d2);
         }
 
@@ -753,7 +749,7 @@ static double compute_potential_energy (struct dynamic_state *ds)
         x1 = *s0[ii] - LJ_LIM + W;
         for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
         { j = s1[jj] - qx;
-          d2 = squared_distance (ds, i, j, &dx, &dy);
+          d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
           U += pair_energy(d2);
         }
       }
@@ -809,9 +805,14 @@ static double pair_energy_deriv (double d2)
 
 static void simple_gradient (struct dynamic_state *ds)
 { 
+  double *restrict qx = I(ds).qx;
+  double *restrict qy = I(ds).qy;
   double *restrict gx = I(ds).gx;
   double *restrict gy = I(ds).gy;
+  int W = I(ds).W;
+  int H = I(ds).H;
   int N = I(ds).N;
+
   double dx, dy, d2, g;
   int i, j;
   
@@ -819,7 +820,7 @@ static void simple_gradient (struct dynamic_state *ds)
 
   for (i = 1; i < N; i++)
   { for (j = 0; j < i; j++)
-    { d2 = squared_distance (ds, i, j, &dx, &dy);
+    { d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
       g = pair_energy_deriv(d2);
       if (g == 0)
       { continue;
@@ -858,6 +859,7 @@ static void compute_gradient (struct dynamic_state *ds)
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   double W = I(ds).W;
+  double H = I(ds).H;
   int N = I(ds).N;
 
   int ii, jj, kk, i, j;
@@ -907,7 +909,7 @@ static void compute_gradient (struct dynamic_state *ds)
 
       for (jj = k0; jj < ii; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_xy (qx[i], qy[i], qx[j], qy[j], &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
         gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -920,7 +922,7 @@ static void compute_gradient (struct dynamic_state *ds)
       x1 = *s0[ii] + LJ_LIM - W;
       for (jj = 0; jj < k0 && *s0[jj] < x1; jj++)
       { j = s0[jj] - qx;
-        d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+        d2 = squared_distance_nowrap_y (qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
         gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -938,7 +940,7 @@ static void compute_gradient (struct dynamic_state *ds)
         for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_xy (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_xy (qx[i], qy[i], qx[j], qy[j], &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -952,7 +954,7 @@ static void compute_gradient (struct dynamic_state *ds)
         for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_y (qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -966,7 +968,7 @@ static void compute_gradient (struct dynamic_state *ds)
         for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
         { j = s1[jj] - qx;
           if (qy[i]-qy[j] >= LJ_LIM) continue;
-          d2 = squared_distance_nowrap_y (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_y (qx[i], qy[i], qx[j], qy[j], W, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -982,7 +984,7 @@ static void compute_gradient (struct dynamic_state *ds)
         x1 = *s0[ii] + LJ_LIM;
         for (jj = k1; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
-          d2 = squared_distance_nowrap_x (ds, i, j, &dx, &dy);
+          d2 = squared_distance_nowrap_x (qx[i], qy[i], qx[j], qy[j], H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -995,7 +997,7 @@ static void compute_gradient (struct dynamic_state *ds)
         x1 = *s0[ii] + LJ_LIM - W;
         for (jj = 0; jj < n1 && *s1[jj] < x1; jj++)
         { j = s1[jj] - qx;
-          d2 = squared_distance (ds, i, j, &dx, &dy);
+          d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
@@ -1008,7 +1010,7 @@ static void compute_gradient (struct dynamic_state *ds)
         x1 = *s0[ii] - LJ_LIM + W;
         for (jj = n1-1; jj >= 0 && *s1[jj] > x1; jj--)
         { j = s1[jj] - qx;
-          d2 = squared_distance (ds, i, j, &dx, &dy);
+          d2 = squared_distance (qx[i], qy[i], qx[j], qy[j], W, H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
           gx[i] += 2*g*dx; gy[i] += 2*g*dy;
