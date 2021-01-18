@@ -1121,7 +1121,7 @@ static void check_gradient (struct dynamic_state *ds, double eps)
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
 static double delta_t = 0.05;
-static int steps = 400;
+static int steps = 170;
 
 void dynui_advance (struct dynamic_state *ds)
 {
