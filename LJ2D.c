@@ -43,7 +43,7 @@
 
 /* OPTIONAL "BOWL" POTENTIAL.  Meant primarily for testing purposes. */
 
-#define BOWL 0     /* Width of bowl that molecules live in, 0 if no bowl */
+#define BOWL 0		/* Width of bowl that molecules live in, 0 if no bowl */
 
 
 /* LIMITS ON POTENTIAL. */
@@ -873,6 +873,7 @@ static void compute_gradient (struct dynamic_state *ds)
   int k0, k1;
 
   double dx, dy, d2, g;
+  double *gxip, *gyip;
   double qxi, qyi;
   double x0, x1;
 
@@ -905,6 +906,8 @@ static void compute_gradient (struct dynamic_state *ds)
     {
       x0 = *s0[ii] - LJ_LIM;
       i = s0[ii] - qx;
+      gxip = gx+i;
+      gyip = gy+i;
       qxi = qx[i];
       qyi = qy[i];
 
@@ -918,7 +921,7 @@ static void compute_gradient (struct dynamic_state *ds)
         d2 = squared_distance_nowrap_xy (qxi, qyi, qx[j], qy[j], &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
-        gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+        *gxip += 2*g*dx; *gyip += 2*g*dy;
         gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
       }
 
@@ -931,7 +934,7 @@ static void compute_gradient (struct dynamic_state *ds)
         d2 = squared_distance_nowrap_y (qxi, qyi, qx[j], qy[j], W, &dx, &dy);
         g = pair_energy_deriv(d2);
         if (g == 0) continue;
-        gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+        *gxip += 2*g*dx; *gyip += 2*g*dy;
         gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
       }
 
@@ -949,7 +952,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance_nowrap_xy (qxi, qyi, qx[j], qy[j], &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
 
@@ -963,7 +966,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance_nowrap_y (qxi, qyi, qx[j], qy[j], W, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
 
@@ -977,7 +980,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance_nowrap_y (qxi, qyi, qx[j], qy[j], W, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
       }
@@ -993,7 +996,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance_nowrap_x (qxi, qyi, qx[j], qy[j], H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
 
@@ -1006,7 +1009,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance (qxi, qyi, qx[j], qy[j], W, H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
 
@@ -1019,7 +1022,7 @@ static void compute_gradient (struct dynamic_state *ds)
           d2 = squared_distance (qxi, qyi, qx[j], qy[j], W, H, &dx, &dy);
           g = pair_energy_deriv(d2);
           if (g == 0) continue;
-          gx[i] += 2*g*dx; gy[i] += 2*g*dy;
+          *gxip += 2*g*dx; *gyip += 2*g*dy;
           gx[j] -= 2*g*dx; gy[j] -= 2*g*dy;
         }
       }
