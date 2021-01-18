@@ -54,21 +54,39 @@ static void quick_sort (quick_value *data, int n)
 {
   for (;;)
   { 
-    if (n < 2)
-    { return;
-    }
+    /* Sort short lists with special code. */
 
-    if (n == 2)
-    { if (quick_greater (data[0], data[1]))
-      { double t = data[0];
-        data[0] = data[1];
-        data[1] = t;
+    if (n <= 3)
+    { quick_value t;
+      if (n < 2)
+      { return;
+      }
+      t = data[1];
+      if (quick_greater (data[0], t))
+      { data[1] = data[0];
+        data[0] = t;
+      }
+      if (n < 3)
+      { return;
+      }
+      t = data[2];
+      if (quick_greater (data[1], t))
+      { data[2] = data[1];
+        if (quick_greater (data[0], t))
+        { data[1] = data[0];
+          data[0] = t;
+        }
+        else
+        { data[1] = t;
+        }
       }
       return;
     }
 
     quick_value m = data[n/2];
     int i, j;
+
+    /* Split data into <= m and >= m parts. */
 
     i = 0; j = n-1;
     for (;;)
@@ -81,10 +99,12 @@ static void quick_sort (quick_value *data, int n)
       if (i > j)
       { break;
       }
-      double t = data[i];
+      quick_value t = data[i];
       data[i] = data[j];
       data[j] = t;
     }
+
+    /* All data >= m.  Put m at front and sort remainder. */
 
     if (i == 0)
     { data[n/2] = data[0];
@@ -94,12 +114,16 @@ static void quick_sort (quick_value *data, int n)
       continue;
     }
 
+    /* All data <= m.  Put m at end and sort remainder. */
+
     if (i == n)
     { data[n/2] = data[n-1];
       data[n-1] = m;
       n -= 1;
       continue;
     }
+
+    /* Some data >= m, some <= m.  Do recursive call on smaller portion. */
 
     if (i > n/2)
     { quick_sort (data+i, n-i);
