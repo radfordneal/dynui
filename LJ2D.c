@@ -31,6 +31,12 @@
    bands is special, because there is then only one pair of adjacent
    bands, whereas the number of pairs of adjacent bands is equal to
    the number of bands when this number is greater than two.
+
+   The divergence in potential energy for a pair of molecules as their
+   distance goes to zero is eliminated by substituting a parabola for
+   for the potential as a function of distance for distances less than 
+   LJ_N, with the parabola chosen so that the potential and its derivative
+   are contininuous at distance LJ_N.
 */
 
 
@@ -61,11 +67,13 @@
 #define LJ_SHIFT (4 * (1/LJL12 - 1/LJL6)) /* Shift of potential to bring value
                                              to zero at distance LJ_LIM */
 
-#define LJ_N 0.9	/* Distance where potential reaches maximum */
+#define LJ_N 0.95	/* Distance where potential switches to parabola */
 
-#define LJ_MAX \
-  (4 * (1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N) \
-         - 1/(LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N)) - LJ_SHIFT)
+#define LJ_N6 (LJ_N*LJ_N*LJ_N*LJ_N*LJ_N*LJ_N)
+#define LJ_N12 (LJ_N6*LJ_N6)
+
+#define LJ_NVAL (4 * (1/LJ_N12 - 1/LJ_N6) - LJ_SHIFT)
+#define LJ_NDERIV (-24/(LJ_N12*LJ_N*LJ_N) + 12/(LJ_N6*LJ_N*LJ_N))
 
 
 /* STATE OF A LENNARD-JONES SYSTEM. */
@@ -551,7 +559,7 @@ static double pair_energy (double d2)
   }
 
   if (d2 <= LJ_N*LJ_N)
-  { return LJ_MAX;
+  { return LJ_NVAL + LJ_NDERIV * (d2 - LJ_N*LJ_N);
   }
 
   double t2 = 1/d2;
@@ -819,8 +827,12 @@ static double compute_kinetic_energy (struct dynamic_state *ds)
 
 static double pair_energy_deriv (double d2)
 { 
-  if (d2 >= LJ_LIM*LJ_LIM || d2 <= LJ_N*LJ_N)
+  if (d2 >= LJ_LIM*LJ_LIM)
   { return 0;
+  }
+
+  if (d2 <= LJ_N*LJ_N)
+  { return LJ_NDERIV;
   }
 
   double t2 = 1/d2;
