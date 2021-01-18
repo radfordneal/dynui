@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for i in 1 2; do
+  cp tst$i.out tst$i.info
+  cp tst$i.result tst$i.save
+done
