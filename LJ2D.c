@@ -359,8 +359,8 @@ int main (int argc, char **argv)
 
   struct window_state ws0, *ws = &ws0;
 
-  ws->width = 600;
-  ws->height = 500;
+  ws->width = 650;
+  ws->height = 400;
   ws->title = "LJ2D";
   ws->running = 0;
   ws->full_screen = 0;
@@ -1109,7 +1109,7 @@ static void check_gradient (struct dynamic_state *ds, double eps)
 /* ADVANCE SIMULATION BY A SMALL TIME AMOUNT. */
 
 static double delta_t = 0.05;
-static int steps = 100;
+static int steps = 400;
 
 void dynui_advance (struct dynamic_state *ds)
 {
@@ -1347,7 +1347,7 @@ static void set_info (struct dynamic_state *ds)
   double K = compute_kinetic_energy(ds);
   static char s[100];
 
-  sprintf (s, "%7.1f=U%7.1f=K%7.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
+  sprintf (s, "%9.1f=U%9.1f=K%9.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
   ds->sim_info = s;
 }
 
