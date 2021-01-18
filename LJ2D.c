@@ -41,6 +41,11 @@
                     -1 = use only the simple energy/gradient computations */
 
 
+/* OPTION FOR USING QUICK SORT OR MERGE SORT. */
+
+#define QUICK_SORT 0	/* 1 for quick sort, 0 for merge sort */
+
+
 /* OPTIONAL "BOWL" POTENTIAL.  Meant primarily for testing purposes. */
 
 #define BOWL 0		/* Width of bowl that molecules live in, 0 if no bowl */
@@ -84,7 +89,9 @@ struct LJ_state
   int *n_in_band;	/* Number of molecules in each band */
   dblptr **sorts;	/* Ptr to array of ptrs to x coords in sorted order */
   dblptr *ysort;	/* Pointers to y coords in sorted order */
-  dblptr *tmp;		/* Temporary storage for sort */
+# if !QUICK_SORT
+  dblptr *tmp;		/* Temporary storage for merge sort */
+# endif
 };
 
 #define I(ds) (*(struct LJ_state *)((ds)->i))
@@ -113,7 +120,9 @@ void alloc (struct LJ_state *I)
    || (I->py = calloc (I->N, sizeof (double))) == NULL
    || (I->gx = calloc (I->N, sizeof (double))) == NULL
    || (I->gy = calloc (I->N, sizeof (double))) == NULL
+#  if !QUICK_SORT
    || (I->tmp = calloc (I->N, sizeof (dblptr))) == NULL
+#  endif
    || (I->ysort = calloc (I->N, sizeof (dblptr))) == NULL
    || (I->n_in_band = calloc (I->bands, sizeof (int))) == NULL
    || (I->sorts = calloc (I->bands, sizeof (dblptr*))) == NULL)
@@ -367,18 +376,26 @@ int main (int argc, char **argv)
 
 /* SORT MOLECULES BY X COORDINATE WITHIN EACH Y COORDINATE BAND. */
 
-#define merge_sort risort
-#define merge_value dblptr
-#define merge_greater(a,b) (*(a) > *(b))
-
-#include "merge-sort.c"
+#if QUICK_SORT
+# define quick_sort risort
+# define quick_value dblptr
+# define quick_greater(a,b) (*(a) > *(b))
+# include "quick-sort.c"
+#else
+# define merge_sort risort
+# define merge_value dblptr
+# define merge_greater(a,b) (*(a) > *(b))
+# include "merge-sort.c"
+#endif
 
 static void x_sort (struct dynamic_state *ds)
 {
   int bands = I(ds).bands;
   int *n_in_band = I(ds).n_in_band;
   dblptr *ysort = I(ds).ysort;
+# if !QUICK_SORT
   dblptr *tmp = I(ds).tmp;
+# endif
   dblptr **sorts = I(ds).sorts;
   double *qx = I(ds).qx;
   double *qy = I(ds).qy;
@@ -386,17 +403,23 @@ static void x_sort (struct dynamic_state *ds)
   int N = I(ds).N;
   int ii, b;
 
+# if !QUICK_SORT
   memcpy (tmp, ysort, N * sizeof(dblptr));
+# endif
 
   if (0)
   { fprintf(stderr,"Before ysort:");
     for (ii = 0; ii < N; ii++) 
-    { fprintf (stderr, " %d:%g", (int)(tmp[ii]-qy), *tmp[ii]);
+    { fprintf (stderr, " %d:%g", (int)(ysort[ii]-qy), *ysort[ii]);
     }
     fprintf(stderr,"\n");
   }
 
-  risort (ysort, tmp, N);
+# if QUICK_SORT
+    risort (ysort, N);
+# else
+    risort (ysort, tmp, N);
+# endif
 
   if (0)
   { fprintf(stderr,"After ysort:");
@@ -415,12 +438,21 @@ static void x_sort (struct dynamic_state *ds)
     int n = 0;
 
     while (ii < N && *ysort[ii] <= upper)
-    { tmp[n] = qx + (ysort[ii] - qy);
+    { 
+#     if QUICK_SORT
+        sorts[b][n] = qx + (ysort[ii] - qy);
+#     else
+        tmp[n] = qx + (ysort[ii] - qy);
+#     endif
       n += 1;
       ii += 1;
     }
 
-    risort (sorts[b], tmp, n);
+#   if QUICK_SORT
+      risort (sorts[b], n);
+#   else
+      risort (sorts[b], tmp, n);
+#   endif
     n_in_band[b] = n;
 
     if (0)

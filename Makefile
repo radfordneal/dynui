@@ -16,4 +16,4 @@ LJ2D:		dynui.o LJ2D.o
 	cc -o LJ2D dynui.o LJ2D.o \
 	  -lm -lcsfml-graphics -lcsfml-window -lcsfml-system -lcsfml-audio
 
-LJ2D.o:		LJ2D.c dynui.h
+LJ2D.o:		LJ2D.c dynui.h merge-sort.c quick-sort.c
