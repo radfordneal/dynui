@@ -444,12 +444,11 @@ static double squared_distance (double qxi, double qyi, double qxj, double qyj,
   dx =  qxi - qxj;
   if (dx < -W/2) dx += W;
   else if (dx >= W/2) dx -= W;
+  *sdx = dx;
 
   dy =  qyi - qyj;
   if (dy < -H/2) dy += H;
   else if (dy >= H/2) dy -= H;
-
-  *sdx = dx;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -464,12 +463,11 @@ static double squared_distance_nowrap_x
   double dx, dy;
 
   dx =  qxi - qxj;
+  *sdx = dx;
 
   dy =  qyi - qyj;
   if (dy < -H/2) dy += H;
   else if (dy >= H/2) dy -= H;
-
-  *sdx = dx;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -486,10 +484,9 @@ static double squared_distance_nowrap_y
   dx =  qxi - qxj;
   if (dx < -W/2) dx += W;
   else if (dx >= W/2) dx -= W;
+  *sdx = dx;
 
   dy =  qyi - qyj;
-
-  *sdx = dx;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -504,9 +501,9 @@ static double squared_distance_nowrap_xy
   double dx, dy;
 
   dx =  qxi - qxj;
-  dy =  qyi - qyj;
-
   *sdx = dx;
+
+  dy =  qyi - qyj;
   *sdy = dy;
 
   return dx*dx + dy*dy;
@@ -525,12 +522,9 @@ static double pair_energy (double d2)
   { return LJ_MAX;
   }
 
-  double t6 = 1/(d2*d2*d2);
+  double t2 = 1/d2;
+  double t6 = t2*t2*t2;
   double t12 = t6*t6;
-
-  if (0)
-  { fprintf (stderr, "non-zero energy for pair at distance %g\n", sqrt(d2));
-  }
 
   return 4 * (t12 - t6) - LJ_SHIFT;
 }
@@ -797,10 +791,13 @@ static double pair_energy_deriv (double d2)
   { return 0;
   }
 
-  double t6 = 1/(d2*d2*d2);
-  double t12 = t6*t6;
+  double t2 = 1/d2;
+  double t4 = t2*t2;
+  double t6 = t4*t2;
+  double t8 = t4*t4;
+  double t14 = t8*t6;
 
-  return (-24*t12 + 12*t6) / d2;
+  return -24*t14 + 12*t8;
 }
 
 
