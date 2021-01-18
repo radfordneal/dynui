@@ -21,16 +21,16 @@ static void merge_sort (merge_value *dst, merge_value *src, int n);
 
 int main (int argc, char **argv)
 {
-    int n = argc - 1;
-    merge_value d[n], s[n];
-    int i;
+  int n = argc - 1;
+  merge_value d[n], s[n];
+  int i;
     
-    for (i = 0; i < n; i++) s[i] = atoi(argv[i+1]);
-    merge_sort (d, s, n);
-    for (i = 0; i < n; i++) printf(" %d",d[i]);
-    printf("\n");
+  for (i = 0; i < n; i++) s[i] = atoi(argv[i+1]);
+  merge_sort (d, s, n);
+  for (i = 0; i < n; i++) printf(" %d",d[i]);
+  printf("\n");
 
-    return 0;
+  return 0;
 }
 
 #endif
@@ -70,83 +70,89 @@ int main (int argc, char **argv)
 
 static void merge_sort (merge_value *dst, merge_value *src, int n)
 {
-    if (n == 2) {
-        if (merge_greater (src[0], src[1])) {
-            dst[0] = src[1];
-            dst[1] = src[0];
-        }
-        else {
-            dst[0] = src[0];
-            dst[1] = src[1];
-        }
+  if (n == 2)
+  { if (merge_greater (src[0], src[1]))
+    { dst[0] = src[1];
+      dst[1] = src[0];
     }
-    else if (n > 2) {
-
-        merge_sort (dst + n/2, src + n/2, n-n/2);
-
-        if (n == 3) {
-            if (!merge_greater (src[0], dst[1]))
-                dst[0] = src[0];
-            else {
-                dst[0] = dst[1];
-                if (!merge_greater (src[0], dst[2]))
-                    dst[1] = src[0];
-                else {
-                    dst[1] = dst[2];
-                    dst[2] = src[0];
-                }
-            }
-        }
-        else {
-
-            merge_sort (src + n/2, src, n/2);
-
-            int n1 = n/2;
-            int n2 = n-n1;
-
-            merge_value *i1 = src + n1;
-            merge_value *i2 = dst + n1;
-            merge_value *j = dst;
-
-            for (;;) {
-                if (merge_greater (*i1, *i2)) {
-                    *j++ = *i2++;
-                    n2 -= 1;
-                    if (n2 == 0) {
-                        if (n1 <= 2) {
-                            *j = *i1;
-                            if (n1 == 2)
-                               *(j+1) = *(i1+1);
-                        }
-                        else
-                            memcpy (j, i1, n1*sizeof(merge_value));
-                        break;
-                    }
-                }
-                else {
-
-                    *j++ = *i1++;
-                    n1 -= 1;
-
-                    /* Periodically check for a big block that can be copied.
-                       This helps when the data is partially sorted already. */
-
-#                   define blk 32  /* must be a power of two */
-                    if (n1 != 0 && (n1 & (blk-1)) == 0 
-                                && !merge_greater (*(i1+(blk-1)), *i2)) {
-                        memcpy (j, i1, blk*sizeof(merge_value));
-                        j += blk;
-                        i1 += blk;
-                        n1 -= blk;
-                    }
-
-                    if (n1 == 0) {
-                        break;  /* no need to copy - data is already there */
-                    }
-                }
-            }
-        }
+    else
+    { dst[0] = src[0];
+      dst[1] = src[1];
     }
-    else if (n > 0)
-        dst[0] = src[0];
+  }
+  else if (n > 2)
+  {
+    merge_sort (dst + n/2, src + n/2, n-n/2);
+
+    if (n == 3)
+    { if (!merge_greater (src[0], dst[1]))
+      { dst[0] = src[0];
+      }
+      else
+      { dst[0] = dst[1];
+        if (!merge_greater (src[0], dst[2]))
+        { dst[1] = src[0];
+        }
+        else
+        { dst[1] = dst[2];
+          dst[2] = src[0];
+        }
+      }
+    }
+    else
+    {
+      merge_sort (src + n/2, src, n/2);
+
+      int n1 = n/2;
+      int n2 = n-n1;
+
+      merge_value *i1 = src + n1;
+      merge_value *i2 = dst + n1;
+      merge_value *j = dst;
+
+      for (;;)
+      { if (merge_greater (*i1, *i2))
+        { *j++ = *i2++;
+          n2 -= 1;
+          if (n2 == 0)
+          { if (n1 <= 2)
+            { *j = *i1;
+              if (n1 == 2)
+              { *(j+1) = *(i1+1);
+              }
+            }
+            else
+            { memcpy (j, i1, n1*sizeof(merge_value));
+            }
+            break;
+          }
+        }
+        else
+        {
+          *j++ = *i1++;
+          n1 -= 1;
+
+          /* Periodically check for a big block that can be copied.
+             This helps when the data is partially sorted already. */
+
+#         define blk 32  /* must be a power of two */
+          if (n1 != 0 && (n1 & (blk-1)) == 0 
+           && !merge_greater (*(i1+(blk-1)), *i2))
+         {
+            memcpy (j, i1, blk*sizeof(merge_value));
+            j += blk;
+            i1 += blk;
+            n1 -= blk;
+          }
+
+          if (n1 == 0)
+          { break;  /* no need to copy - data is already there */
+          }
+        }
+      }
+    }
+  }
+  else if (n > 0)
+  { dst[0] = src[0];
+  }
 }
