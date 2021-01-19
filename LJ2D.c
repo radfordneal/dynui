@@ -1,5 +1,17 @@
 /* LJ2D.C - Program for simulating dynamics of Lennard-Jones particles in 2D.
    Copyright 2021 by Radford M. Neal
+
+    This program is free software: you can redistribute it and/or
+    modify it under the terms of version 3 of the GNU General Public
+    License as published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "dynui.h"
@@ -34,10 +46,10 @@
 
    The divergence in potential energy for a pair of molecules as their
    distance goes to zero is eliminated by substituting a parabola for
-   for the potential as a function of distance for distances less than 
-   LJ_N, with the parabola chosen so that the potential and its derivative
-   are contininuous at distance LJ_N.
-*/
+   the potential as a function of distance for distances less than
+   LJ_N, with the parabola chosen so that the potential and its
+   derivative are contininuous at distance LJ_N.  
+ */
 
 
 /* OPTION FOR CHECKING OPTIMIZED COMPUTATIONS OF POTENTIAL ENERGY / GRADIENT. */
