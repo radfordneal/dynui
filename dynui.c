@@ -116,6 +116,10 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         else if (event.key.code == sfKeyEscape)
         { ws->exit = 1;
         }
+        else if (event.key.code == sfKeySpace)
+        { ws->running = !ws->running;
+          set_start_time (ds, ws);
+        }
       }
       else if (event.type == sfEvtMouseButtonPressed &&
                event.mouseButton.button == 0)

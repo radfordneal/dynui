@@ -36,7 +36,8 @@ that provide the following facilities:
 The viewing port may be moved by dragging with the left mouse button
 down. Typing ESC exits full-screen mode, or exits the program if not
 in full-screen mode. Typing Control/C exits the program in either
-mode.
+mode. Typing SPACE is an alternative way of starting or stopping the
+simulation.
 
 The circle.c program demonstates this framework for a trivial simulation.
 
