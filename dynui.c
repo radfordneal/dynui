@@ -78,9 +78,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
   ws->clock = sfClock_create();
 
   /* Set initial values for state.  Some are assumed already set if we're
-     entering full screen model. */
+     entering full screen mode from window mode (full_screen set to -1). */
 
-  if (!ws->full_screen)
+  if (ws->full_screen != -1)
   { ws->offset = zero_vector_f;
     ws->scale = 1;
     ws->sim_speed = 1;
@@ -552,7 +552,7 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
            the full-screen one, and back. */
 
         struct window_state fws;
-        fws.full_screen = 1;
+        fws.full_screen = -1;  /* full screen with some fields already set */
         fws.title = "";
 
         fws.running = ws->running;
