@@ -108,6 +108,7 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     {
       if (event.type == sfEvtClosed)
       { ws->exit = 1;
+        continue;
       }
       else if (event.type == sfEvtKeyPressed)
       { if (event.key.code == sfKeyC && event.key.control)
@@ -115,23 +116,26 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         }
         else if (event.key.code == sfKeyEscape)
         { ws->exit = 1;
+          continue;
         }
         else if (event.key.code == sfKeySpace)
         { ws->running = !ws->running;
           set_start_time (ds, ws);
+          continue;
         }
       }
       else if (event.type == sfEvtMouseButtonPressed &&
                event.mouseButton.button == 0)
       { mouse_press (ws, event.mouseButton.x, event.mouseButton.y);
+        continue;
       }
       else if (event.type == sfEvtMouseButtonReleased &&
                event.mouseButton.button == 0)
       { mouse_release (ds, ws, event.mouseButton.x, event.mouseButton.y);
+        continue;
       }
-      else
-      { dynui_event (ds, ws, event);
-      }
+
+      dynui_event (ds, ws, event);
     }
 
     /* Shift view during press of the mouse in the view area. */
