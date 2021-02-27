@@ -157,8 +157,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     {
       if (ws->running_behind)
       { for (i = 0; i < N_SPEEDS; i++)
-        { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
-                                      sfWhite : sfColor_fromRGB(150, 150, 150));
+        { sfCircleShape_setFillColor (ws->speeds[i], 
+            ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<i ? sfWhite 
+             : sfColor_fromRGB(150, 150, 150));
         }
       }
 
@@ -189,8 +190,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
 
       if (ws->running_behind)
       { for (i = 0; i < N_SPEEDS; i++)
-        { sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ?
-                                      sfRed : sfColor_fromRGB (150, 150, 150));
+        { sfCircleShape_setFillColor (ws->speeds[i], 
+            ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<i ? sfRed
+             : sfColor_fromRGB(150, 150, 150));
         }
       }
 
@@ -296,13 +298,20 @@ static void create_controls (struct window_state *ws)
     p.y = y;
     sfCircleShape_setPosition (ws->speeds[i], p);
     sfCircleShape_setRadius (ws->speeds[i], h/2);
-    sfCircleShape_setFillColor (ws->speeds[i], ws->sim_speed == 1<<i ? sfWhite :
-                                               sfColor_fromRGB (150, 150, 150));
+    sfCircleShape_setFillColor (ws->speeds[i], 
+      ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<i ? sfWhite 
+       : sfColor_fromRGB (150, 150, 150));
+    if (SLOW_SPEEDS > 0 && i == SLOW_SPEEDS)
+    { ws->speed_one = sfVertexArray_create();
+      append_vertex (ws->speed_one, p.x+h/2, p.y+h-1, sfBlack);
+      append_vertex (ws->speed_one, p.x+h/2, p.y+1, sfBlack);
+      sfVertexArray_setPrimitiveType (ws->speed_one, sfLines);
+    }
   }
 
   /* Zoom controls. */
 
-  sfVector2f s = { h, h };
+  sfVector2f s = { h-1, h };
   x = 35 + (h+3)*N_SPEEDS;
   y = ws->height - c_height + 6;
   h = c_height - 12;
@@ -313,8 +322,15 @@ static void create_controls (struct window_state *ws)
     p.y = y;
     sfRectangleShape_setPosition (ws->scales[i], p);
     sfRectangleShape_setSize (ws->scales[i], s);
-    sfRectangleShape_setFillColor (ws->scales[i], ws->scale == 1<<i ? sfWhite :
-                                   sfColor_fromRGB (150, 150, 150));
+    sfRectangleShape_setFillColor (ws->scales[i], 
+      ws->scale*(1<<SMALL_SCALES) == 1<<i ? sfWhite 
+       : sfColor_fromRGB (150, 150, 150));
+    if (SMALL_SCALES > 0 && i == SMALL_SCALES)
+    { ws->scale_one = sfVertexArray_create();
+      append_vertex (ws->scale_one, p.x+h/2, p.y+h-1, sfBlack);
+      append_vertex (ws->scale_one, p.x+h/2, p.y+1, sfBlack);
+      sfVertexArray_setPrimitiveType (ws->scale_one, sfLines);
+    }
   }
 
   /* Text of simulation time. */
@@ -401,9 +417,15 @@ static void draw_controls (struct window_state *ws)
   for (i = 0; i < N_SPEEDS; i++)
   { sfRenderWindow_drawCircleShape (ws->window, ws->speeds[i], NULL);
   }
+  if (SLOW_SPEEDS > 0)
+  { sfRenderWindow_drawVertexArray (ws->window, ws->speed_one, NULL);
+  }
 
   for (i = 0; i < N_SCALES; i++)
   { sfRenderWindow_drawRectangleShape (ws->window, ws->scales[i], NULL);
+  }
+  if (SMALL_SCALES > 0)
+  { sfRenderWindow_drawVertexArray (ws->window, ws->scale_one, NULL);
   }
 
   sfRenderWindow_drawVertexArray (ws->window, ws->save_button, NULL);
@@ -426,8 +448,14 @@ static void destroy_controls (struct window_state *ws)
   for (i = 0; i < N_SPEEDS; i++)
   { sfCircleShape_destroy (ws->speeds[i]);
   }
+  if (SLOW_SPEEDS > 0)
+  { sfVertexArray_destroy (ws->speed_one);
+  }
   for (i = 0; i < N_SCALES; i++)
   { sfRectangleShape_destroy (ws->scales[i]);
+  }
+  if (SMALL_SCALES > 0)
+  { sfVertexArray_destroy (ws->scale_one);
   }
   sfText_destroy (ws->sim_time_display);
   sfVertexArray_destroy (ws->full_button);
@@ -519,10 +547,11 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
     for (i = 0; i < N_SPEEDS; i++)
     { if (in_bounds (sfCircleShape_getGlobalBounds(ws->speeds[i]), x, y))
-      { ws->sim_speed = 1<<i;
+      { ws->sim_speed = (double) (1<<i) / (1<<SLOW_SPEEDS);
         for (j = 0; j < N_SPEEDS; j++)
         { sfCircleShape_setFillColor (ws->speeds[j], 
-            ws->sim_speed == 1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+            ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<j ? sfWhite 
+             : sfColor_fromRGB (150, 150, 150));
         }
         set_start_time (ds, ws);
         return;
@@ -533,10 +562,11 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
     for (i = 0; i < N_SCALES; i++)
     { if (in_bounds (sfRectangleShape_getGlobalBounds(ws->scales[i]), x, y))
-      { ws->scale = 1<<i;
+      { ws->scale = (double) (1<<i) / (1<<SMALL_SCALES);
         for (j = 0; j < N_SCALES; j++)
         { sfRectangleShape_setFillColor (ws->scales[j], 
-            ws->scale ==1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+            ws->scale*(1<<SMALL_SCALES) == 1<<j ? sfWhite 
+             : sfColor_fromRGB (150, 150, 150));
         }
         set_start_time (ds, ws);
         return;

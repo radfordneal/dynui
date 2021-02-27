@@ -27,8 +27,10 @@
 static int c_height = 22;	/* c_height-4 must be divisible by 2, and
                                    c_height-10 must be divisible by 3 */
 
-#define N_SPEEDS 6		/* Number speed settings */
-#define N_SCALES 4		/* Number of zoom settings */
+#define N_SPEEDS 7		/* Number speed settings */
+#define SLOW_SPEEDS 1		/* Number of speed setting below 1 */
+#define N_SCALES 6		/* Number of zoom settings */
+#define SMALL_SCALES 1		/* Number of zoon settings below 1 */
 
 
 /* WINDOW STATE. */
@@ -65,7 +67,9 @@ struct window_state
   sfVertexArray *run_button;	/* Button to let simulation run */
   sfVertexArray *pause_button;	/* Button to pause simulation (replaces run) */
   sfCircleShape *speeds[N_SPEEDS];    /* Speed control buttons */
+  sfVertexArray *speed_one;	/* Vertical line marker for speed of 1 */
   sfRectangleShape *scales[N_SCALES]; /* Zoom buttons */
+  sfVertexArray *scale_one;	/* Vertical line marker for scale of 1 */
   sfVertexArray *save_button;	/* Button to ask application to save state */
   sfVertexArray *full_button;	/* Button to enter or exit full screen mode */
 
