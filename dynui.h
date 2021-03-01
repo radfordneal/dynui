@@ -92,6 +92,7 @@ struct dynamic_state
 { 
   double sim_time;		/* Current simulation time */
   char *sim_info;		/* String with information to display */
+  char *sim_xinfo;		/* String with extra information to display */
 
   void *i;			/* Additional information */
 };

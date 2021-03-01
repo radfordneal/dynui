@@ -212,6 +212,7 @@ int main (int argc, char **argv)
   ds->i = (void *) &LJ;
   ds->sim_time = 0;
   ds->sim_info = "";
+  ds->sim_xinfo = "";
 
   /* Parse program arguments, and perhaps read saved file. */
 
@@ -1363,15 +1364,18 @@ void dynui_terminate()
 }
 
 
-/* SET INFORMATION STRING.  Shows potential and kinetic energy. */
+/* SET INFORMATION STRING.  Shows potential and kinetic energy, and total.
+   The extra info shows temperature. */
 
 static void set_info (struct dynamic_state *ds)
 {
   double U = compute_potential_energy(ds);
   double K = compute_kinetic_energy(ds);
-  static char s[100];
+  static char s[101], xs[101];
 
-  sprintf (s, "%9.1f=U%9.1f=K%9.1f=H%6.2f=T", U, K, U+K, K/I(ds).N);
+  sprintf (s, "%9.1f=U%9.1f=K%9.1f=H", U, K, U+K);
   ds->sim_info = s;
+  sprintf (xs, "%8.2f=T", K/I(ds).N);
+  ds->sim_xinfo = xs;
 }
 

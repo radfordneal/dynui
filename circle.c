@@ -31,6 +31,7 @@ int main (int argc, char **argv)
 
   ds.sim_time = 0;
   ds.sim_info = "";
+  ds.sim_xinfo = "";
 
   /* Allocate window state and initialize application-specified fields. */
 

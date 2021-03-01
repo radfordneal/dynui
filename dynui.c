@@ -196,10 +196,15 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         }
       }
 
-      char s[12];
+      char s[201];
       sprintf (s, "%10.1f", ds->sim_time);
       sfText_setString (ws->sim_time_display, s);
-      sfText_setString (ws->sim_info_display, ds->sim_info);
+      strncpy (s, ds->sim_info, 200);
+      s[200] = 0;
+      if (ws->full_screen)
+      { strncat (s, ds->sim_xinfo, 200-strlen(s));
+      }
+      sfText_setString (ws->sim_info_display, s);
     }
           
     /* Redraw the window. */
@@ -458,6 +463,7 @@ static void destroy_controls (struct window_state *ws)
   { sfVertexArray_destroy (ws->scale_one);
   }
   sfText_destroy (ws->sim_time_display);
+  sfText_destroy (ws->sim_info_display);
   sfVertexArray_destroy (ws->full_button);
 }
 
