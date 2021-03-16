@@ -613,7 +613,8 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         }
         for (j = 0; j < N_SCALES; j++)
         { sfRectangleShape_setFillColor (ws->scales[j], 
-            ws->scale ==1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+            ws->scale*(1<<SMALL_SCALES) ==1<<j ? sfWhite 
+             : sfColor_fromRGB (150, 150, 150));
         }
 
         set_start_time (ds, ws);
