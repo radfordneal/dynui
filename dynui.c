@@ -609,11 +609,12 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
 
         for (j = 0; j < N_SPEEDS; j++)
         { sfCircleShape_setFillColor (ws->speeds[j], 
-            ws->sim_speed == 1<<j ? sfWhite : sfColor_fromRGB (150, 150, 150));
+            ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<j ? sfWhite 
+             : sfColor_fromRGB (150, 150, 150));
         }
         for (j = 0; j < N_SCALES; j++)
         { sfRectangleShape_setFillColor (ws->scales[j], 
-            ws->scale*(1<<SMALL_SCALES) ==1<<j ? sfWhite 
+            ws->scale*(1<<SMALL_SCALES) == 1<<j ? sfWhite 
              : sfColor_fromRGB (150, 150, 150));
         }
 
