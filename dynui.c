@@ -114,6 +114,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
       { if (event.key.code == sfKeyC && event.key.control)
         { dynui_terminate();
         }
+        else if (event.key.code == sfKeyC)
+        { ws->show_controls = !ws->show_controls;
+        }
         else if (event.key.code == sfKeyEscape)
         { ws->exit = 1;
           continue;
@@ -212,7 +215,9 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
     sfRenderWindow_clear (ws->window, sfBlack);
 
     dynui_view (ds, ws);
-    draw_controls (ws);
+    if (ws->show_controls)
+    { draw_controls (ws);
+    }
 
     /* Render the window onto the display. */
 
@@ -495,7 +500,7 @@ static void mouse_press (struct window_state *ws, int x, int y)
    no longer pressed, so shifting of the view will stop.
 
    For a release in the control area, something may actually be done now, 
-   if the press was also in the control area.  
+   if the press was also in the control area, and controls are shown.
 
    Checks for whether the release was for a certain control looks slightly 
    outside the bounding box, to make missing less likely. */
@@ -517,7 +522,7 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
     return;
   }
 
-  if (in_control_area)
+  if (in_control_area && ws->show_controls)
   {
     int i, j;
 
@@ -599,6 +604,7 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         fws.offset = ws->offset;
         fws.scale = ws->scale;
         fws.sim_speed = ws->sim_speed;
+        fws.show_controls = ws->show_controls;
 
         dynui_window (ds, &fws);
 
@@ -606,6 +612,7 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
         ws->offset = fws.offset;
         ws->scale = fws.scale;
         ws->sim_speed = fws.sim_speed;
+        ws->show_controls = fws.show_controls;
 
         for (j = 0; j < N_SPEEDS; j++)
         { sfCircleShape_setFillColor (ws->speeds[j], 

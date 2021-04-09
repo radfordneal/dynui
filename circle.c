@@ -42,6 +42,7 @@ int main (int argc, char **argv)
   ws.title = "circle";
   ws.running = 0;
   ws.full_screen = 0;
+  ws.show_controls = 1;
 
   /* Create window and let user interact with it, with simulation running
      when requested. */

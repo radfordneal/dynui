@@ -32,10 +32,18 @@ that provide the following facilities:
   o Full-screen/exit-full-screen button (in lower-right corner).
 
 The viewing port may be moved by dragging with the left mouse button
-down. Typing ESC exits full-screen mode, or exits the program if not
-in full-screen mode. Typing Control/C exits the program in either
-mode. Typing SPACE is an alternative way of starting or stopping the
-simulation.
+down. 
+
+Some keys also can be used to control the program:
+
+  o ESC exits full-screen mode, or exits the program if not in full-screen 
+    mode.
+
+  o Control/C exits the program in either mode.
+
+  o SPACE is an alternative way of starting or stopping the simulation.
+
+  o Pressing 'c' toggles whether controls are visible (and enabled).
 
 The circle.c program demonstates this framework for a trivial simulation.
 
