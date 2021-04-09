@@ -43,7 +43,7 @@ struct window_state
   char *title;			/* Title for window */
   int running;			/* Should simulation be running? */
   int full_screen;		/* Is this a full-screen window? */
-  int show_controls;            /* Should controls/info be shown at bottom? */
+  int show_controls;		/* Should controls/info be shown at bottom? */
   int width;			/* Width of window */
   int height;			/* Height of window */
 
