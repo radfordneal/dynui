@@ -33,6 +33,8 @@ static void mouse_press (struct window_state *ws, int x, int y);
 static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
                            int x, int y);
 
+static void full_screen (struct dynamic_state *ds, struct window_state *ws);
+
 static void set_start_time (struct dynamic_state *ds, struct window_state *ws);
 static void append_vertex (sfVertexArray *a, int x, int y, sfColor c);
 
@@ -116,6 +118,16 @@ void dynui_window (struct dynamic_state *ds, struct window_state *ws)
         }
         else if (event.key.code == sfKeyC)
         { ws->show_controls = !ws->show_controls;
+          continue;
+        }
+        else if (event.key.code == sfKeyF)
+        { if (ws->full_screen)
+          { ws->exit = 1;
+          }
+          else
+          { full_screen (ds, ws);
+          }
+          continue;
         }
         else if (event.key.code == sfKeyEscape)
         { ws->exit = 1;
@@ -591,45 +603,52 @@ static void mouse_release (struct dynamic_state *ds, struct window_state *ws,
       { ws->exit = 1;
       }
       else
-      { 
-        /* Create a full-screen window, and let it handle things until the
-           user exits from it.  Transfer some settings from this window to 
-           the full-screen one, and back. */
-
-        struct window_state fws;
-        fws.full_screen = -1;  /* full screen with some fields already set */
-        fws.title = "";
-
-        fws.running = ws->running;
-        fws.offset = ws->offset;
-        fws.scale = ws->scale;
-        fws.sim_speed = ws->sim_speed;
-        fws.show_controls = ws->show_controls;
-
-        dynui_window (ds, &fws);
-
-        ws->running = fws.running;
-        ws->offset = fws.offset;
-        ws->scale = fws.scale;
-        ws->sim_speed = fws.sim_speed;
-        ws->show_controls = fws.show_controls;
-
-        for (j = 0; j < N_SPEEDS; j++)
-        { sfCircleShape_setFillColor (ws->speeds[j], 
-            ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<j ? sfWhite 
-             : sfColor_fromRGB (150, 150, 150));
-        }
-        for (j = 0; j < N_SCALES; j++)
-        { sfRectangleShape_setFillColor (ws->scales[j], 
-            ws->scale*(1<<SMALL_SCALES) == 1<<j ? sfWhite 
-             : sfColor_fromRGB (150, 150, 150));
-        }
-
-        set_start_time (ds, ws);
+      { full_screen (ds, ws);
       }
       return;
     }
   }
+}
+
+
+/* CREATE A FULL-SCREEN WINDOW.  Let it handle things until the user
+   exits from it.  Transfer some settings from this window to the
+   full-screen one, and back. */
+
+static void full_screen (struct dynamic_state *ds, struct window_state *ws)
+{
+  int j;
+
+  struct window_state fws;
+  fws.full_screen = -1;  /* full screen with some fields already set */
+  fws.title = "";
+
+  fws.running = ws->running;
+  fws.offset = ws->offset;
+  fws.scale = ws->scale;
+  fws.sim_speed = ws->sim_speed;
+  fws.show_controls = ws->show_controls;
+
+  dynui_window (ds, &fws);
+
+  ws->running = fws.running;
+  ws->offset = fws.offset;
+  ws->scale = fws.scale;
+  ws->sim_speed = fws.sim_speed;
+  ws->show_controls = fws.show_controls;
+
+  for (j = 0; j < N_SPEEDS; j++)
+  { sfCircleShape_setFillColor (ws->speeds[j], 
+      ws->sim_speed*(1<<SLOW_SPEEDS) == 1<<j ? sfWhite 
+       : sfColor_fromRGB (150, 150, 150));
+  }
+  for (j = 0; j < N_SCALES; j++)
+  { sfRectangleShape_setFillColor (ws->scales[j], 
+      ws->scale*(1<<SMALL_SCALES) == 1<<j ? sfWhite 
+       : sfColor_fromRGB (150, 150, 150));
+  }
+
+  set_start_time (ds, ws);
 }
 
 
