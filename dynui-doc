@@ -47,6 +47,12 @@ Some keys also can be used to control the program:
 
   o Pressing 'c' toggles whether controls are visible (and enabled).
 
+  o '-' and '+' (or '=') are alternative ways of decreasing or increasing
+    the scale of the view.
+
+  o '<' (or ',') and '>' (or '.') are alternative ways of slowing down
+    or speeding up the simulation.
+
 The circle.c program demonstates this framework for a trivial simulation.
 
 The LJ2D.c program is a more elaborate demonstration, of a 2D system
